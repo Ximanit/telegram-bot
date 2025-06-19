@@ -38,7 +38,7 @@ const getCartSummary = (cart) => ({
 const handleStart = async (ctx) => {
 	const userName = ctx.from?.first_name || 'Друг';
 	ctx.session.awaitingQuestion = false;
-	ctx.session.lastAction = null; // Сбрасываем при старте
+	ctx.session.lastAction = null;
 	ctx.session.actionCount = 0;
 	await ctx.reply(MESSAGES.start.replace('%s', userName), {
 		parse_mode: 'Markdown',
@@ -68,22 +68,6 @@ const callbackHandlers = {
 
 	show_reviews: async (ctx) => {
 		await editMessage(ctx, MESSAGES.reviews, createBackKeyboard());
-	},
-
-	ask_question: async (ctx) => {
-		const hasQuestionService = ctx.session.paidServices?.some(
-			(s) => s.id === 'single_question' && (ctx.session.questionCount || 0) < 1
-		);
-		if (!ctx.session.paidServices || !hasQuestionService) {
-			await editMessage(
-				ctx,
-				'Пожалуйста, оплатите услугу "Ответ на 1 вопрос" для отправки вопроса.',
-				createBackKeyboard()
-			);
-			return;
-		}
-		ctx.session.awaitingQuestion = true;
-		await editMessage(ctx, MESSAGES.askQuestion, createBackKeyboard());
 	},
 
 	view_cart: async (ctx) => {
@@ -116,15 +100,30 @@ const callbackHandlers = {
 		ctx.session.paidServices = ctx.session.cart;
 		ctx.session.hasPaid = true;
 		ctx.session.questionCount = 0;
-		ctx.session.lastAction = null; // Сбрасываем при оплате
+		ctx.session.lastAction = null;
 		ctx.session.actionCount = 0;
 		const { total } = getCartSummary(ctx.session.cart);
-		ctx.session.cart = [];
-		await editMessage(
-			ctx,
-			`${MESSAGES.paymentConfirmed}\nОплачено: ${total} руб.`,
-			createStartKeyboard()
+
+		// Проверяем, есть ли услуга "Ответ на 1 вопрос"
+		const hasSingleQuestion = ctx.session.cart.some(
+			(s) => s.id === 'single_question'
 		);
+		ctx.session.cart = [];
+
+		if (hasSingleQuestion) {
+			ctx.session.awaitingQuestion = true;
+			await editMessage(
+				ctx,
+				`${MESSAGES.paymentConfirmed}\nОплачено: ${total} руб.\n\n${MESSAGES.askQuestion}`,
+				createBackKeyboard()
+			);
+		} else {
+			await editMessage(
+				ctx,
+				`${MESSAGES.paymentConfirmed}\nОплачено: ${total} руб.\n\nЭта услуга пока не поддерживает задавание вопросов.`,
+				createStartKeyboard()
+			);
+		}
 		await ctx.answerCallbackQuery('Оплата подтверждена');
 	},
 };
@@ -132,7 +131,7 @@ const callbackHandlers = {
 // Обработчик всех callback'ов
 const handleCallbackQuery = async (ctx) => {
 	const userName = ctx.from?.first_name || 'Друг';
-	ctx.session.awaitingQuestion = false; // Сбрасываем состояние
+	ctx.session.awaitingQuestion = false;
 	const action = ctx.callbackQuery.data;
 	console.log(`Callback action: ${action}`);
 
@@ -148,7 +147,7 @@ const handleCallbackQuery = async (ctx) => {
 	// Если нажато более 3 раз, отправляем гифку
 	if (ctx.session.actionCount > 3) {
 		await ctx.replyWithAnimation(
-			'https://t.me/AnimatedSticker/12345', // Пример публичной гифки (замените на реальную)
+			'ВСТАВЬТЕ_СЮДА_FILE_ID', // Замените на file_id гифки с гоблином
 			{ caption: 'Эй, хватит тыкать одну и ту же кнопку! 😺' }
 		);
 		await ctx.answerCallbackQuery();
@@ -190,10 +189,27 @@ const handleCallbackQuery = async (ctx) => {
 
 // Обработчик текстовых сообщений
 const handleText = async (ctx) => {
+	// Логирование всех медиа для диагностики
+	if (ctx.message) {
+		console.log('Received message:', {
+			animation: !!ctx.message.animation,
+			video: !!ctx.message.video,
+			sticker: !!ctx.message.sticker,
+			photo: !!ctx.message.photo,
+			text: ctx.message.text,
+		});
+	}
+
 	// Логирование file_id гифки
 	if (ctx.message.animation) {
 		console.log(`GIF file_id: ${ctx.message.animation.file_id}`);
 		await ctx.reply(`GIF file_id: ${ctx.message.animation.file_id}`);
+	} else if (ctx.message.video) {
+		console.log(`Video file_id: ${ctx.message.video.file_id}`);
+		await ctx.reply(`Video file_id: ${ctx.message.video.file_id}`);
+	} else if (ctx.message.sticker) {
+		console.log(`Sticker file_id: ${ctx.message.sticker.file_id}`);
+		await ctx.reply(`Sticker file_id: ${ctx.message.sticker.file_id}`);
 	}
 
 	if (ctx.session.awaitingQuestion) {
