@@ -1,6 +1,15 @@
 const { Bot, session } = require('grammy');
 require('dotenv').config();
-const { handleStart, handleCallbackQuery, handleText } = require('./handlers');
+const { handleStart } = require('./handlers/commands');
+const { handleCallbackQuery } = require('./handlers/callbacks');
+const { handleText } = require('./handlers/text');
+const { handleError } = require('./handlers/utils');
+
+// Проверка переменных окружения
+if (!process.env.API_KEY || !process.env.ADMIN_ID) {
+	console.error('Ошибка: API_KEY или ADMIN_ID не указаны в .env');
+	process.exit(1);
+}
 
 const bot = new Bot(process.env.API_KEY);
 
@@ -13,7 +22,7 @@ bot.use(
 			cart: [],
 			paidServices: [],
 			questionCount: 0,
-			lastAction: null, // Последнее действие
+			lastAction: null,
 		}),
 	})
 );
@@ -25,13 +34,10 @@ bot.command('pay', async (ctx) => {
 	ctx.session.awaitingQuestion = false;
 	ctx.session.paidServices = [];
 	ctx.session.questionCount = 0;
-	ctx.session.lastAction = null; // Сбрасываем при оплате
-	await ctx.reply(
-		'Оплата подтверждена! Для вопросов добавьте услугу "Ответ на 1 вопрос" в корзину.',
-		{
-			parse_mode: 'Markdown',
-		}
-	);
+	await ctx.reply(require('./constants').MESSAGES.paymentConfirmed, {
+		parse_mode: 'Markdown',
+		reply_markup: require('./keyboards').createStartKeyboard(),
+	});
 });
 bot.on('callback_query:data', handleCallbackQuery);
 bot.on('message:text', handleText);
@@ -44,7 +50,7 @@ bot.catch((err, ctx) => {
 		context: ctx ? JSON.stringify(ctx, null, 2) : 'No context available',
 	});
 	if (ctx?.chat) {
-		ctx.reply('Ой, что-то пошло не так! 😔 Попробуйте позже.');
+		handleError(ctx);
 	}
 });
 

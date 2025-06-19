@@ -37,4 +37,5 @@ module.exports = {
 	createPriceKeyboard,
 	createCartKeyboard,
 	createBackKeyboard,
+	InlineKeyboard,
 };
