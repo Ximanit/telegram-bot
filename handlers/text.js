@@ -7,7 +7,15 @@ const validateQuestion = (question) => {
 };
 
 const handleText = async (ctx) => {
+	if (ctx.message.text === 'Мяу') {
+		return ctx.reply(MESSAGES.muy, {
+			parse_mode: 'Markdown',
+			reply_markup: createStartKeyboard(),
+		});
+	}
+
 	if (!ctx.session.awaitingQuestion) {
+		console.log();
 		return ctx.reply(MESSAGES.unknownMessage, {
 			parse_mode: 'Markdown',
 			reply_markup: createStartKeyboard(),
