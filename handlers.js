@@ -39,7 +39,6 @@ const handleStart = async (ctx) => {
 	const userName = ctx.from?.first_name || 'Друг';
 	ctx.session.awaitingQuestion = false;
 	ctx.session.lastAction = null;
-	ctx.session.actionCount = 0;
 	await ctx.reply(MESSAGES.start.replace('%s', userName), {
 		parse_mode: 'Markdown',
 		reply_markup: createStartKeyboard(),
@@ -101,7 +100,6 @@ const callbackHandlers = {
 		ctx.session.hasPaid = true;
 		ctx.session.questionCount = 0;
 		ctx.session.lastAction = null;
-		ctx.session.actionCount = 0;
 		const { total } = getCartSummary(ctx.session.cart);
 
 		// Проверяем, есть ли услуга "Ответ на 1 вопрос"
@@ -134,25 +132,6 @@ const handleCallbackQuery = async (ctx) => {
 	ctx.session.awaitingQuestion = false;
 	const action = ctx.callbackQuery.data;
 	console.log(`Callback action: ${action}`);
-
-	// Отслеживание повторных нажатий
-	if (ctx.session.lastAction === action) {
-		ctx.session.actionCount = (ctx.session.actionCount || 0) + 1;
-	} else {
-		ctx.session.lastAction = action;
-		ctx.session.actionCount = 1;
-	}
-	console.log(`Action count: ${ctx.session.actionCount}`);
-
-	// Если нажато более 3 раз, отправляем гифку
-	if (ctx.session.actionCount > 3) {
-		await ctx.replyWithAnimation(
-			'ВСТАВЬТЕ_СЮДА_FILE_ID', // Замените на file_id гифки с гоблином
-			{ caption: 'Эй, хватит тыкать одну и ту же кнопку! 😺' }
-		);
-		await ctx.answerCallbackQuery();
-		return;
-	}
 
 	// Обработка add_to_cart_ отдельно из-за динамического ID
 	if (action.startsWith('add_to_cart_')) {
@@ -189,29 +168,6 @@ const handleCallbackQuery = async (ctx) => {
 
 // Обработчик текстовых сообщений
 const handleText = async (ctx) => {
-	// Логирование всех медиа для диагностики
-	if (ctx.message) {
-		console.log('Received message:', {
-			animation: !!ctx.message.animation,
-			video: !!ctx.message.video,
-			sticker: !!ctx.message.sticker,
-			photo: !!ctx.message.photo,
-			text: ctx.message.text,
-		});
-	}
-
-	// Логирование file_id гифки
-	if (ctx.message.animation) {
-		console.log(`GIF file_id: ${ctx.message.animation.file_id}`);
-		await ctx.reply(`GIF file_id: ${ctx.message.animation.file_id}`);
-	} else if (ctx.message.video) {
-		console.log(`Video file_id: ${ctx.message.video.file_id}`);
-		await ctx.reply(`Video file_id: ${ctx.message.video.file_id}`);
-	} else if (ctx.message.sticker) {
-		console.log(`Sticker file_id: ${ctx.message.sticker.file_id}`);
-		await ctx.reply(`Sticker file_id: ${ctx.message.sticker.file_id}`);
-	}
-
 	if (ctx.session.awaitingQuestion) {
 		const hasQuestionService = ctx.session.paidServices?.some(
 			(s) => s.id === 'single_question' && (ctx.session.questionCount || 0) < 1
@@ -238,7 +194,6 @@ const handleText = async (ctx) => {
 
 		ctx.session.questionCount = (ctx.session.questionCount || 0) + 1;
 		ctx.session.lastAction = null;
-		ctx.session.actionCount = 0;
 		await ctx.reply('Ваш вопрос отправлен! Ожидайте ответа. 😊', {
 			parse_mode: 'Markdown',
 			reply_markup: createStartKeyboard(),

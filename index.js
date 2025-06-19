@@ -14,7 +14,6 @@ bot.use(
 			paidServices: [],
 			questionCount: 0,
 			lastAction: null, // Последнее действие
-			actionCount: 0, // Счётчик повторных нажатий
 		}),
 	})
 );
@@ -27,7 +26,6 @@ bot.command('pay', async (ctx) => {
 	ctx.session.paidServices = [];
 	ctx.session.questionCount = 0;
 	ctx.session.lastAction = null; // Сбрасываем при оплате
-	ctx.session.actionCount = 0;
 	await ctx.reply(
 		'Оплата подтверждена! Для вопросов добавьте услугу "Ответ на 1 вопрос" в корзину.',
 		{
