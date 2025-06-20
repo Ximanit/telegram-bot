@@ -5,7 +5,9 @@ const {
 	createBackKeyboard,
 	InlineKeyboard,
 } = require('../keyboards');
+
 const { MESSAGES, SERVICES } = require('../constants');
+
 const { editMessage, cartUtils } = require('./utils');
 
 // Универсальный обработчик callback'ов

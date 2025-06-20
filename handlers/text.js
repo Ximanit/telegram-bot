@@ -8,7 +8,7 @@ const validateQuestion = (question) => {
 
 const handleText = async (ctx) => {
 	if (ctx.message.text === 'Мяу') {
-		return ctx.reply(MESSAGES.muy, {
+		return ctx.reply(MESSAGES.meow, {
 			parse_mode: 'Markdown',
 			reply_markup: createStartKeyboard(),
 		});

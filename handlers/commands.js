@@ -1,4 +1,4 @@
-const { createStartKeyboard } = require('../keyboards');
+const { createStartKeyboard, createBackKeyboard } = require('../keyboards');
 const { MESSAGES } = require('../constants');
 
 const handleStart = async (ctx) => {
@@ -11,4 +11,18 @@ const handleStart = async (ctx) => {
 	});
 };
 
-module.exports = { handleStart };
+const handleMeow = async (ctx) => {
+	await ctx.reply(MESSAGES.meow, {
+		parse_mode: 'Markdown',
+		reply_markup: createStartKeyboard(),
+	});
+};
+
+const handleHelp = async (ctx) => {
+	await ctx.reply(MESSAGES.help, {
+		parse_mode: 'Markdown',
+		reply_markup: createBackKeyboard(),
+	});
+};
+
+module.exports = { handleStart, handleMeow, handleHelp };

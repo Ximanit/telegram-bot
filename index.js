@@ -1,6 +1,8 @@
 const { Bot, session } = require('grammy');
+
 require('dotenv').config();
-const { handleStart } = require('./handlers/commands');
+
+const { handleStart, handleMeow, handleHelp } = require('./handlers/commands');
 const { handleCallbackQuery } = require('./handlers/callbacks');
 const { handleText } = require('./handlers/text');
 const { handleError } = require('./handlers/utils');
@@ -29,6 +31,8 @@ bot.use(
 
 // Регистрация обработчиков
 bot.command('start', handleStart);
+bot.command('meow', handleMeow);
+bot.command('help', handleHelp);
 bot.on('callback_query:data', handleCallbackQuery);
 bot.on('message:text', handleText);
 
