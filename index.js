@@ -21,7 +21,8 @@ bot.use(
 		initial: () => ({
 			hasPaid: false,
 			awaitingQuestion: false,
-			cart: [],
+			awaitingReview: false,
+			cart: [], // Пустая корзина для хранения услуг с количеством
 			paidServices: [],
 			questionCount: 0,
 			lastAction: null,

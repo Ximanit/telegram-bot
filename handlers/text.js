@@ -1,11 +1,24 @@
-const { createStartKeyboard, createBackKeyboard } = require('../keyboards');
+const {
+	createStartKeyboard,
+	createBackKeyboard,
+	createReviewModerationKeyboard,
+} = require('../keyboards');
 const { MESSAGES } = require('../constants');
+const { addReview } = require('./reviews');
 
+// Валидация вопроса (минимум 5 символов)
 const validateQuestion = (question) => {
 	const trimmed = question.trim();
 	return trimmed.length >= 5 ? trimmed : null;
 };
 
+// Валидация отзыва (минимум 10 символов)
+const validateReview = (text) => {
+	const trimmed = text.trim();
+	return trimmed.length >= 10 ? trimmed : null;
+};
+
+// Обработчик текстовых сообщений
 const handleText = async (ctx) => {
 	if (ctx.message.text === 'Мяу') {
 		return ctx.reply(MESSAGES.meow, {
@@ -14,8 +27,40 @@ const handleText = async (ctx) => {
 		});
 	}
 
+	// Обработка отзыва
+	if (ctx.session.awaitingReview) {
+		const reviewText = validateReview(ctx.message.text);
+		if (!reviewText) {
+			return ctx.reply(MESSAGES.reviewTooShort, {
+				parse_mode: 'Markdown',
+				reply_markup: createBackKeyboard(),
+			});
+		}
+
+		const review = await addReview(ctx.from.id, ctx.from.username, reviewText);
+
+		// Уведомление администратору
+		await ctx.api.sendMessage(
+			process.env.ADMIN_ID,
+			MESSAGES.reviewReceived
+				.replace('%username', ctx.from.username || `ID ${ctx.from.id}`)
+				.replace('%text', reviewText),
+			{
+				parse_mode: 'Markdown',
+				reply_markup: createReviewModerationKeyboard(review.id),
+			}
+		);
+
+		ctx.session.awaitingReview = false;
+		ctx.session.lastAction = null;
+		return ctx.reply(MESSAGES.reviewSent, {
+			parse_mode: 'Markdown',
+			reply_markup: createStartKeyboard(),
+		});
+	}
+
+	// Обработка вопроса
 	if (!ctx.session.awaitingQuestion) {
-		console.log();
 		return ctx.reply(MESSAGES.unknownMessage, {
 			parse_mode: 'Markdown',
 			reply_markup: createStartKeyboard(),
