@@ -1,0 +1,50 @@
+[
+  {
+    "id": 1,
+    "userId": 1775179633,
+    "username": "ximanit",
+    "text": "12345678910",
+    "approved": true,
+    "timestamp": "2025-06-20T02:07:42.096Z"
+  },
+  {
+    "id": 2,
+    "userId": 1775179633,
+    "username": "ximanit",
+    "text": "Тестовый отзыва",
+    "approved": true,
+    "timestamp": "2025-06-20T02:08:50.909Z"
+  },
+  {
+    "id": 3,
+    "userId": 1775179633,
+    "username": "ximanit",
+    "text": "Пробный отзыв ради пробы",
+    "approved": true,
+    "timestamp": "2025-06-20T12:39:15.920Z"
+  },
+  {
+    "id": 4,
+    "userId": 1775179633,
+    "username": "ximanit",
+    "text": "Проверка проверка проверка",
+    "approved": true,
+    "timestamp": "2025-06-20T13:07:20.839Z"
+  },
+  {
+    "id": 5,
+    "userId": 1775179633,
+    "username": "ximanit",
+    "text": "1231331312313",
+    "approved": true,
+    "timestamp": "2025-06-20T13:14:49.202Z"
+  },
+  {
+    "id": 6,
+    "userId": 1775179633,
+    "username": "ximanit",
+    "text": "Проверочный отзыв ради проверки",
+    "approved": true,
+    "timestamp": "2025-06-20T13:20:54.250Z"
+  }
+]

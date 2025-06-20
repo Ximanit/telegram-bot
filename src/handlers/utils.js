@@ -1,7 +1,6 @@
 const { createStartKeyboard } = require('../keyboards');
 const { MESSAGES } = require('../constants');
 
-// Обработка ошибок
 const handleError = async (ctx, error, defaultMessage = MESSAGES.error) => {
 	console.error('Ошибка:', error);
 	try {
@@ -17,9 +16,8 @@ const handleError = async (ctx, error, defaultMessage = MESSAGES.error) => {
 	}
 };
 
-// Редактирование сообщения
 const editMessage = async (ctx, text, keyboard) => {
-	console.log('Попытка редактирования сообщения:', { text, keyboard }); // Отладка
+	console.log('Попытка редактирования сообщения:', { text, keyboard });
 	try {
 		if (!text || typeof text !== 'string') {
 			throw new Error('Текст сообщения пустой или некорректный');
@@ -28,7 +26,7 @@ const editMessage = async (ctx, text, keyboard) => {
 			parse_mode: 'Markdown',
 			reply_markup: keyboard,
 		});
-		console.log('Сообщение успешно отредактировано:', text); // Отладка
+		console.log('Сообщение успешно отредактировано:', text);
 		await ctx.answerCallbackQuery();
 	} catch (error) {
 		console.error('Ошибка редактирования сообщения:', error);
@@ -38,7 +36,6 @@ const editMessage = async (ctx, text, keyboard) => {
 		} else if (
 			error.description?.includes('Bad Request: message to edit not found')
 		) {
-			// Если сообщение не найдено, отправляем новое
 			try {
 				await ctx.reply(text, {
 					parse_mode: 'Markdown',
@@ -56,7 +53,6 @@ const editMessage = async (ctx, text, keyboard) => {
 	}
 };
 
-// Утилиты для корзины
 const cartUtils = {
 	summary: (cart) => ({
 		count: cart.reduce((sum, item) => sum + item.quantity, 0),

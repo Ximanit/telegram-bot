@@ -1,9 +1,8 @@
 const fs = require('fs').promises;
 const path = require('path');
 
-const REVIEWS_FILE = path.join(__dirname, 'reviews.json');
+const REVIEWS_FILE = path.join(__dirname, '../data/reviews.json');
 
-// Инициализация файла отзывов, если он не существует
 async function initReviewsFile() {
 	try {
 		await fs.access(REVIEWS_FILE);
@@ -14,13 +13,12 @@ async function initReviewsFile() {
 	}
 }
 
-// Получение всех отзывов
 async function getReviews() {
 	try {
 		await initReviewsFile();
 		const data = await fs.readFile(REVIEWS_FILE, 'utf8');
 		const reviews = JSON.parse(data);
-		console.log('Отзывы из файла:', reviews); // Отладка: выводим содержимое файла
+		console.log('Отзывы из файла:', reviews);
 		if (!Array.isArray(reviews)) {
 			console.error(
 				'reviews.json содержит некорректные данные, ожидаем массив'
@@ -34,7 +32,6 @@ async function getReviews() {
 	}
 }
 
-// Добавление нового отзыва
 async function addReview(userId, username, text) {
 	try {
 		const reviews = await getReviews();
@@ -48,7 +45,7 @@ async function addReview(userId, username, text) {
 		};
 		reviews.push(newReview);
 		await fs.writeFile(REVIEWS_FILE, JSON.stringify(reviews, null, 2));
-		console.log('Добавлен отзыв:', newReview); // Отладка: выводим добавленный отзыв
+		console.log('Добавлен отзыв:', newReview);
 		return newReview;
 	} catch (error) {
 		console.error('Ошибка добавления отзыва:', error);
@@ -56,7 +53,6 @@ async function addReview(userId, username, text) {
 	}
 }
 
-// Обновление статуса отзыва (одобрить/отклонить)
 async function updateReviewStatus(id, approved) {
 	try {
 		const reviews = await getReviews();
@@ -64,7 +60,7 @@ async function updateReviewStatus(id, approved) {
 		if (review) {
 			review.approved = approved;
 			await fs.writeFile(REVIEWS_FILE, JSON.stringify(reviews, null, 2));
-			console.log(`Отзыв ${id} обновлен, approved: ${approved}`); // Отладка
+			console.log(`Отзыв ${id} обновлен, approved: ${approved}`);
 			return review;
 		}
 		console.warn(`Отзыв с id ${id} не найден`);
