@@ -47,6 +47,13 @@ const callbackHandlers = {
 		(_, userName) => MESSAGES.start.replace('%s', userName),
 		() => createStartKeyboard()
 	),
+	back_to_price: createCallbackHandler(
+		(ctx) =>
+			MESSAGES.cartSummary
+				.replace('%count', cartUtils.summary(ctx.session.cart).count)
+				.replace('%total', cartUtils.summary(ctx.session.cart).total),
+		() => createPriceKeyboard()
+	),
 	show_terms: createCallbackHandler(MESSAGES.terms, () => createBackKeyboard()),
 	show_price: createCallbackHandler(
 		(ctx) =>

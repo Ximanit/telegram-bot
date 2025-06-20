@@ -29,16 +29,6 @@ bot.use(
 
 // Регистрация обработчиков
 bot.command('start', handleStart);
-bot.command('pay', async (ctx) => {
-	ctx.session.hasPaid = true;
-	ctx.session.awaitingQuestion = false;
-	ctx.session.paidServices = [];
-	ctx.session.questionCount = 0;
-	await ctx.reply(require('./constants').MESSAGES.paymentConfirmed, {
-		parse_mode: 'Markdown',
-		reply_markup: require('./keyboards').createStartKeyboard(),
-	});
-});
 bot.on('callback_query:data', handleCallbackQuery);
 bot.on('message:text', handleText);
 

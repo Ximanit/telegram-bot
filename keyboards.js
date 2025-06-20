@@ -25,7 +25,7 @@ const createCartKeyboard = () => {
 		.text('Очистить корзину', 'clear_cart')
 		.text('Оплатить', 'pay_cart')
 		.row()
-		.text('Назад', 'back_to_menu');
+		.text('Назад', 'back_to_price');
 };
 
 const createBackKeyboard = () => {
