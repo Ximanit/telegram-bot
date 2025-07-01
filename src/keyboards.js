@@ -15,10 +15,6 @@ const createStartKeyboard = (questionCount = 0) => {
 
 const createPriceKeyboard = () => {
 	return new InlineKeyboard()
-		.text('Консультация (30 мин) — 5000 руб.', 'add_to_cart_consultation')
-		.row()
-		.text('Полный расклад — 10000 руб.', 'add_to_cart_full_reading')
-		.row()
 		.text('Ответ на 1 вопрос — 2000 руб.', 'add_to_cart_single_question')
 		.row()
 		.text('Просмотреть корзину', 'view_cart')

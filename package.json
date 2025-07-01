@@ -5,7 +5,7 @@
 	"main": "index.js",
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1",
-		"dev": "nodemon node index.js --ignore src/data/reviews.json"
+		"dev": "nodemon node index.js --ignore src/data/reviews.json --ignore src/data/payments.json"
 	},
 	"keywords": [],
 	"author": "",

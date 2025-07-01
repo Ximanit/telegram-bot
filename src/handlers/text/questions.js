@@ -7,6 +7,7 @@ const validateQuestion = (text) => {
 };
 
 const handleQuestionText = async (ctx) => {
+	console.log(ctx.session);
 	if (ctx.session.questionCount <= 0) {
 		ctx.session.awaitingQuestion = false;
 		return ctx.reply(MESSAGES.noQuestionService, {

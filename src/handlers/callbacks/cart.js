@@ -80,6 +80,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 		const payment = await updatePaymentStatus(paymentId, 'confirmed');
 		if (payment) {
 			const questionCount = payment.questionCount;
+			console.log(payment.questionCount);
 			ctx.session.paidServices = payment.cart.flatMap((item) =>
 				Array(item.quantity).fill({
 					name: item.name,

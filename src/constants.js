@@ -42,9 +42,5 @@ module.exports = {
 			'Ваш платеж был отклонен. Пожалуйста, свяжитесь с администратором.',
 		paymentReceived: 'Новый платеж от %username\nСумма: %total руб.',
 	},
-	SERVICES: [
-		{ id: 'consultation', name: 'Консультация (30 мин)', price: 5000 },
-		{ id: 'full_reading', name: 'Полный расклад', price: 10000 },
-		{ id: 'single_question', name: 'Ответ на 1 вопрос', price: 2000 },
-	],
+	SERVICES: [{ id: 'single_question', name: 'Ответ на 1 вопрос', price: 2000 }],
 };
