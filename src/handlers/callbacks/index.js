@@ -1,6 +1,7 @@
 const { handleCartCallback } = require('./cart');
 const { handleNavigationCallback } = require('./navigation');
 const { handleReviewCallback } = require('./reviews');
+const { createBackKeyboard } = require('../../keyboards');
 
 const handleCallbackQuery = async (ctx) => {
 	const userName = ctx.from?.first_name || 'Друг';
@@ -16,7 +17,9 @@ const handleCallbackQuery = async (ctx) => {
 		action === 'clear_cart' ||
 		action === 'confirm_clear_cart' ||
 		action === 'pay_cart' ||
-		action === 'view_cart'
+		action === 'view_cart' ||
+		action.startsWith('confirm_payment_') ||
+		action.startsWith('reject_payment_')
 	) {
 		return handleCartCallback(ctx, action, userName);
 	}

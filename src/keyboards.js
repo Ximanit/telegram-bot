@@ -1,12 +1,16 @@
 const { InlineKeyboard } = require('grammy');
 
-const createStartKeyboard = () => {
-	return new InlineKeyboard()
+const createStartKeyboard = (questionCount = 0) => {
+	const keyboard = new InlineKeyboard()
 		.text('Условия', 'show_terms')
 		.text('Прайс', 'show_price')
 		.row()
 		.text('Отзывы', 'show_reviews')
 		.text('Оставить отзыв', 'add_review');
+	if (questionCount > 0) {
+		keyboard.row().text('Задать вопрос', 'ask_question');
+	}
+	return keyboard;
 };
 
 const createPriceKeyboard = () => {
@@ -40,14 +44,24 @@ const createCartKeyboard = (cart) => {
 	return keyboard;
 };
 
-const createBackKeyboard = () => {
-	return new InlineKeyboard().text('Назад', 'back_to_menu');
+const createBackKeyboard = (questionCount = 0) => {
+	const keyboard = new InlineKeyboard().text('Назад', 'back_to_menu');
+	if (questionCount > 0) {
+		keyboard.text('Задать вопрос', 'ask_question');
+	}
+	return keyboard;
 };
 
 const createReviewModerationKeyboard = (reviewId) => {
 	return new InlineKeyboard()
-		.text('Одобрить', `approve_review_${reviewId}`)
-		.text('Отклонить', `reject_review_${reviewId}`);
+		.text('Одобрить ✅', `approve_review_${reviewId}`)
+		.text('Отклонить ❌', `reject_review_${reviewId}`);
+};
+
+const createPaymentConfirmationKeyboard = (paymentId) => {
+	return new InlineKeyboard()
+		.text('Подтвердить оплату ✅', `confirm_payment_${paymentId}`)
+		.text('Отклонить оплату ❌', `reject_payment_${paymentId}`);
 };
 
 module.exports = {
@@ -56,5 +70,6 @@ module.exports = {
 	createCartKeyboard,
 	createBackKeyboard,
 	createReviewModerationKeyboard,
+	createPaymentConfirmationKeyboard,
 	InlineKeyboard,
 };

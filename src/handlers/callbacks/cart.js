@@ -3,6 +3,7 @@ const {
 	createCartKeyboard,
 	createBackKeyboard,
 	createStartKeyboard,
+	createPaymentConfirmationKeyboard,
 	InlineKeyboard,
 } = require('../../keyboards');
 const { MESSAGES, SERVICES } = require('../../constants');
@@ -12,6 +13,7 @@ const {
 	increaseQuantity,
 	decreaseQuantity,
 } = require('../../services/cart');
+const { addPayment, updatePaymentStatus } = require('../../services/payments');
 
 const handleCartCallback = async (ctx, action, userName) => {
 	if (action.startsWith('add_to_cart_')) {
@@ -56,36 +58,75 @@ const handleCartCallback = async (ctx, action, userName) => {
 			return;
 		}
 		const { total } = cartUtils.summary(ctx.session.cart);
-		ctx.session.paidServices = ctx.session.cart.flatMap((item) =>
-			Array(item.quantity).fill({
-				name: item.name,
-				price: item.price,
-				id: item.id,
-			})
+		const payment = await addPayment(
+			ctx.from.id,
+			ctx.from.username,
+			ctx.session.cart,
+			total
 		);
-		ctx.session.hasPaid = true;
-		ctx.session.questionCount = 0;
-		ctx.session.lastAction = null;
-		const hasSingleQuestion = ctx.session.cart.some(
-			(s) => s.id === 'single_question'
-		);
-		ctx.session.cart = [];
-		const text = hasSingleQuestion
-			? `${MESSAGES.paymentConfirmed}\n${MESSAGES.paymentTotal.replace(
-					'%total',
-					total
-			  )}\n\n${MESSAGES.askQuestion}`
-			: `${MESSAGES.paymentConfirmed}\n${MESSAGES.paymentTotal.replace(
-					'%total',
-					total
-			  )}\n\n${MESSAGES.paymentNoQuestions}`;
-		ctx.session.awaitingQuestion = hasSingleQuestion;
+		ctx.session.paymentId = payment.id;
+		ctx.session.awaitingPaymentPhoto = true;
 		await editMessage(
 			ctx,
-			text,
-			hasSingleQuestion ? createBackKeyboard() : createStartKeyboard()
+			`Пожалуйста, оплатите ${total} руб. по следующим реквизитам:\n\n` +
+				`Карта: 1234 5678 9012 3456\n` +
+				`Получатель: Имя Фамилия\n\n` +
+				`После оплаты загрузите фото чека.`,
+			createBackKeyboard(ctx.session.questionCount)
 		);
-		await ctx.answerCallbackQuery('Оплата подтверждена');
+		await ctx.answerCallbackQuery();
+	} else if (action.startsWith('confirm_payment_')) {
+		const paymentId = parseInt(action.replace('confirm_payment_', ''));
+		const payment = await updatePaymentStatus(paymentId, 'confirmed');
+		if (payment) {
+			const questionCount = payment.questionCount;
+			ctx.session.paidServices = payment.cart.flatMap((item) =>
+				Array(item.quantity).fill({
+					name: item.name,
+					price: item.price,
+					id: item.id,
+				})
+			);
+			ctx.session.hasPaid = true;
+			ctx.session.questionCount = questionCount;
+			ctx.session.awaitingQuestion = questionCount > 0;
+			ctx.session.cart = [];
+			await ctx.api.sendMessage(
+				payment.userId,
+				`${MESSAGES.paymentConfirmed}\n${MESSAGES.paymentTotal.replace(
+					'%total',
+					payment.total
+				)}\n` + `У вас доступно вопросов: ${questionCount}`,
+				{ reply_markup: createStartKeyboard(questionCount) }
+			);
+			console.log(ctx.session);
+			// Отправляем новое сообщение вместо редактирования
+			await ctx.reply('Платеж подтвержден', {
+				parse_mode: 'Markdown',
+				reply_markup: createBackKeyboard(ctx.session.questionCount),
+			});
+			await ctx.answerCallbackQuery('Платеж подтвержден');
+		} else {
+			await ctx.answerCallbackQuery('Ошибка: платеж не найден');
+		}
+	} else if (action.startsWith('reject_payment_')) {
+		const paymentId = parseInt(action.replace('reject_payment_', ''));
+		const payment = await updatePaymentStatus(paymentId, 'rejected');
+		if (payment) {
+			await ctx.api.sendMessage(
+				payment.userId,
+				'Ваш платеж был отклонен. Пожалуйста, свяжитесь с администратором.',
+				{ reply_markup: createStartKeyboard(ctx.session.questionCount) }
+			);
+			// Отправляем новое сообщение вместо редактирования
+			await ctx.reply('Платеж отклонен', {
+				parse_mode: 'Markdown',
+				reply_markup: createBackKeyboard(ctx.session.questionCount),
+			});
+			await ctx.answerCallbackQuery('Платеж отклонен');
+		} else {
+			await ctx.answerCallbackQuery('Ошибка: платеж не найден');
+		}
 	}
 };
 

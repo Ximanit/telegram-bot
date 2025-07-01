@@ -30,9 +30,22 @@ const editMessage = async (ctx, text, keyboard) => {
 		await ctx.answerCallbackQuery();
 	} catch (error) {
 		console.error('Ошибка редактирования сообщения:', error);
-		if (error.description?.includes('message is not modified')) {
-			console.log('Сообщение не изменилось, пропускаем');
-			await ctx.answerCallbackQuery();
+		if (
+			error.description?.includes('message is not modified') ||
+			error.description?.includes('there is no text in the message to edit')
+		) {
+			console.log('Редактирование невозможно, отправляем новое сообщение');
+			try {
+				await ctx.reply(text, {
+					parse_mode: 'Markdown',
+					reply_markup: keyboard,
+				});
+				console.log('Отправлено новое сообщение:', text);
+				await ctx.answerCallbackQuery();
+			} catch (replyError) {
+				console.error('Ошибка отправки нового сообщения:', replyError);
+				await handleError(ctx, replyError);
+			}
 		} else if (
 			error.description?.includes('Bad Request: message to edit not found')
 		) {

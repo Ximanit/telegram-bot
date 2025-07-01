@@ -1,20 +1,17 @@
 const { createStartKeyboard, createBackKeyboard } = require('../../keyboards');
 const { MESSAGES } = require('../../constants');
 
-const validateQuestion = (question) => {
-	const trimmed = question.trim();
+const validateQuestion = (text) => {
+	const trimmed = text.trim();
 	return trimmed.length >= 5 ? trimmed : null;
 };
 
 const handleQuestionText = async (ctx) => {
-	const hasQuestionService = ctx.session.paidServices?.some(
-		(s) => s.id === 'single_question' && (ctx.session.questionCount || 0) < 1
-	);
-	if (!hasQuestionService) {
+	if (ctx.session.questionCount <= 0) {
 		ctx.session.awaitingQuestion = false;
 		return ctx.reply(MESSAGES.noQuestionService, {
 			parse_mode: 'Markdown',
-			reply_markup: createBackKeyboard(),
+			reply_markup: createBackKeyboard(ctx.session.questionCount),
 		});
 	}
 
@@ -22,7 +19,7 @@ const handleQuestionText = async (ctx) => {
 	if (!question) {
 		return ctx.reply(MESSAGES.questionTooShort, {
 			parse_mode: 'Markdown',
-			reply_markup: createBackKeyboard(),
+			reply_markup: createBackKeyboard(ctx.session.questionCount),
 		});
 	}
 
@@ -35,13 +32,16 @@ const handleQuestionText = async (ctx) => {
 		`Новый вопрос от ${userInfo} (${userName}):\n${question}`
 	);
 
-	ctx.session.questionCount = (ctx.session.questionCount || 0) + 1;
+	ctx.session.questionCount -= 1;
 	ctx.session.lastAction = null;
 	ctx.session.awaitingQuestion = false;
-	await ctx.reply(MESSAGES.questionSent, {
-		parse_mode: 'Markdown',
-		reply_markup: createStartKeyboard(),
-	});
+	await ctx.reply(
+		`${MESSAGES.questionSent}\nОсталось вопросов: ${ctx.session.questionCount}`,
+		{
+			parse_mode: 'Markdown',
+			reply_markup: createStartKeyboard(ctx.session.questionCount),
+		}
+	);
 };
 
 module.exports = { handleQuestionText };
