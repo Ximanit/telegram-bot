@@ -6,51 +6,37 @@ const {
 const { MESSAGES } = require('../../constants');
 const { editMessage, cartUtils } = require('../utils');
 
-const createCallbackHandler =
-	(getText, getKeyboard, onExecute) => async (ctx, userName) => {
-		try {
-			const text =
-				typeof getText === 'function' ? await getText(ctx, userName) : getText;
-			if (!text) {
-				console.error('Текст для callback пустой');
-				await ctx.answerCallbackQuery('Ошибка: нет текста для отображения');
-				return;
-			}
-			const keyboard = getKeyboard(ctx);
-			await editMessage(ctx, text, keyboard);
-			if (onExecute) await onExecute(ctx);
-		} catch (error) {
-			console.error('Ошибка в createCallbackHandler:', error);
-			await ctx.answerCallbackQuery('Ошибка при обработке запроса');
-		}
-	};
-
 const callbackHandlers = {
-	back_to_menu: createCallbackHandler(
-		(_, userName) => MESSAGES.start.replace('%s', userName),
-		() => createStartKeyboard()
-	),
-	back_to_price: createCallbackHandler(
-		(ctx) =>
+	back_to_menu: {
+		text: (ctx) => MESSAGES.start.replace('%s', ctx.from?.first_name || 'Друг'),
+		keyboard: createStartKeyboard,
+	},
+	back_to_price: {
+		text: (ctx) =>
 			MESSAGES.cartSummary
 				.replace('%count', cartUtils.summary(ctx.session.cart).count)
 				.replace('%total', cartUtils.summary(ctx.session.cart).total),
-		() => createPriceKeyboard()
-	),
-	show_terms: createCallbackHandler(MESSAGES.terms, () => createBackKeyboard()),
-	show_price: createCallbackHandler(
-		(ctx) =>
+		keyboard: createPriceKeyboard,
+	},
+	show_terms: {
+		text: MESSAGES.terms,
+		keyboard: createBackKeyboard,
+	},
+	show_price: {
+		text: (ctx) =>
 			MESSAGES.cartSummary
 				.replace('%count', cartUtils.summary(ctx.session.cart).count)
 				.replace('%total', cartUtils.summary(ctx.session.cart).total),
-		() => createPriceKeyboard()
-	),
+		keyboard: createPriceKeyboard,
+	},
 };
 
-const handleNavigationCallback = async (ctx, action, userName) => {
+const handleNavigationCallback = async (ctx, action) => {
 	const handler = callbackHandlers[action];
 	if (handler) {
-		await handler(ctx, userName);
+		const text =
+			typeof handler.text === 'function' ? handler.text(ctx) : handler.text;
+		await editMessage(ctx, text, handler.keyboard(ctx.session.questionCount));
 	} else {
 		await ctx.answerCallbackQuery(`Неизвестное действие: ${action}`);
 	}

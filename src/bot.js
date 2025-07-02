@@ -1,11 +1,11 @@
 const { Bot, session } = require('grammy');
+const { FileAdapter } = require('@grammyjs/storage-file');
 require('dotenv').config();
 const { handleStart } = require('./handlers/commands/start');
 const { handleMeow } = require('./handlers/commands/meow');
 const { handleHelp } = require('./handlers/commands/help');
 const { handleCallbackQuery } = require('./handlers/callbacks');
 const { handleText } = require('./handlers/text');
-const { handleError } = require('./handlers/utils');
 const {
 	updatePaymentStatus,
 	savePaymentPhoto,
@@ -15,6 +15,7 @@ const {
 	createStartKeyboard,
 	createBackKeyboard,
 } = require('./keyboards');
+const { handleError } = require('./handlers/utils');
 
 if (!process.env.API_KEY || !process.env.ADMIN_ID) {
 	console.error('Ошибка: API_KEY или ADMIN_ID не указаны в .env');
@@ -25,6 +26,7 @@ const bot = new Bot(process.env.API_KEY);
 
 bot.use(
 	session({
+		storage: new FileAdapter({ dir: '/src/data/sessions' }),
 		initial: () => ({
 			hasPaid: false,
 			awaitingQuestion: false,
@@ -33,7 +35,6 @@ bot.use(
 			cart: [],
 			paidServices: [],
 			questionCount: 0,
-			lastAction: null,
 			paymentId: null,
 		}),
 	})
@@ -42,6 +43,7 @@ bot.use(
 bot.command('start', handleStart);
 bot.command('meow', handleMeow);
 bot.command('help', handleHelp);
+
 bot.on('callback_query:data', async (ctx) => {
 	if (ctx.callbackQuery.data === 'ask_question') {
 		ctx.session.awaitingQuestion = true;
@@ -54,7 +56,9 @@ bot.on('callback_query:data', async (ctx) => {
 		await handleCallbackQuery(ctx);
 	}
 });
+
 bot.on('message:text', handleText);
+
 bot.on('message:photo', async (ctx) => {
 	if (ctx.session.awaitingPaymentPhoto && ctx.session.paymentId) {
 		const photo = ctx.message.photo[ctx.message.photo.length - 1];
@@ -81,15 +85,6 @@ bot.on('message:photo', async (ctx) => {
 	}
 });
 
-bot.catch((err, ctx) => {
-	const updateId = ctx?.update?.update_id ?? 'unknown';
-	console.error(`Error for update ${updateId}:`, {
-		error: err,
-		context: ctx ? JSON.stringify(ctx, null, 2) : 'No context available',
-	});
-	if (ctx?.chat) {
-		handleError(ctx);
-	}
-});
+bot.catch(handleError);
 
 module.exports = bot;

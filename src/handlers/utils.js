@@ -1,23 +1,25 @@
 const { createStartKeyboard } = require('../keyboards');
 const { MESSAGES } = require('../constants');
 
-const handleError = async (ctx, error, defaultMessage = MESSAGES.error) => {
-	console.error('Ошибка:', error);
-	try {
-		await ctx.reply(defaultMessage, {
-			parse_mode: 'Markdown',
-			reply_markup: createStartKeyboard(),
-		});
-		if (ctx.callbackQuery) {
-			await ctx.answerCallbackQuery({ text: MESSAGES.errorCallback });
+const handleError = async (err, ctx) => {
+	const updateId = ctx?.update?.update_id ?? 'unknown';
+	console.error(`Error for update ${updateId}:`, err);
+	if (ctx?.chat) {
+		try {
+			await ctx.reply(MESSAGES.error, {
+				parse_mode: 'Markdown',
+				reply_markup: createStartKeyboard(ctx.session.questionCount),
+			});
+			if (ctx.callbackQuery) {
+				await ctx.answerCallbackQuery({ text: MESSAGES.errorCallback });
+			}
+		} catch (replyError) {
+			console.error('Ошибка при отправке сообщения об ошибке:', replyError);
 		}
-	} catch (replyError) {
-		console.error('Ошибка при отправке сообщения об ошибке:', replyError);
 	}
 };
 
 const editMessage = async (ctx, text, keyboard) => {
-	console.log('Попытка редактирования сообщения:', { text, keyboard });
 	try {
 		if (!text || typeof text !== 'string') {
 			throw new Error('Текст сообщения пустой или некорректный');
@@ -26,44 +28,17 @@ const editMessage = async (ctx, text, keyboard) => {
 			parse_mode: 'Markdown',
 			reply_markup: keyboard,
 		});
-		console.log('Сообщение успешно отредактировано:', text);
-		await ctx.answerCallbackQuery();
 	} catch (error) {
-		console.error('Ошибка редактирования сообщения:', error);
 		if (
 			error.description?.includes('message is not modified') ||
-			error.description?.includes('there is no text in the message to edit')
+			error.description?.includes('message to edit not found')
 		) {
-			console.log('Редактирование невозможно, отправляем новое сообщение');
-			try {
-				await ctx.reply(text, {
-					parse_mode: 'Markdown',
-					reply_markup: keyboard,
-				});
-				console.log('Отправлено новое сообщение:', text);
-				await ctx.answerCallbackQuery();
-			} catch (replyError) {
-				console.error('Ошибка отправки нового сообщения:', replyError);
-				await handleError(ctx, replyError);
-			}
-		} else if (
-			error.description?.includes('Bad Request: message to edit not found')
-		) {
-			try {
-				await ctx.reply(text, {
-					parse_mode: 'Markdown',
-					reply_markup: keyboard,
-				});
-				console.log('Отправлено новое сообщение вместо редактирования:', text);
-				await ctx.answerCallbackQuery();
-			} catch (replyError) {
-				console.error('Ошибка отправки нового сообщения:', replyError);
-				await handleError(ctx, replyError);
-			}
+			await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: keyboard });
 		} else {
-			await handleError(ctx, error);
+			await handleError(error, ctx);
 		}
 	}
+	if (ctx.callbackQuery) await ctx.answerCallbackQuery();
 };
 
 const cartUtils = {

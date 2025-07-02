@@ -23,7 +23,7 @@ const createPriceKeyboard = () => {
 
 const createCartKeyboard = (cart) => {
 	const keyboard = new InlineKeyboard();
-	if (cart && cart.length > 0) {
+	if (cart?.length) {
 		cart.forEach((item) => {
 			keyboard
 				.text('−', `decrease_quantity_${item.id}`)
@@ -41,11 +41,7 @@ const createCartKeyboard = (cart) => {
 };
 
 const createBackKeyboard = (questionCount = 0) => {
-	const keyboard = new InlineKeyboard().text('Назад', 'back_to_menu');
-	if (questionCount > 0) {
-		keyboard.text('Задать вопрос', 'ask_question');
-	}
-	return keyboard;
+	return new InlineKeyboard().text('Назад', 'back_to_menu');
 };
 
 const createReviewModerationKeyboard = (reviewId) => {
@@ -67,5 +63,4 @@ module.exports = {
 	createBackKeyboard,
 	createReviewModerationKeyboard,
 	createPaymentConfirmationKeyboard,
-	InlineKeyboard,
 };

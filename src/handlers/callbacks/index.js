@@ -1,14 +1,9 @@
 const { handleCartCallback } = require('./cart');
 const { handleNavigationCallback } = require('./navigation');
 const { handleReviewCallback } = require('./reviews');
-const { createBackKeyboard } = require('../../keyboards');
 
 const handleCallbackQuery = async (ctx) => {
-	const userName = ctx.from?.first_name || 'Друг';
-	ctx.session.awaitingQuestion = false;
 	const action = ctx.callbackQuery.data;
-
-	console.log('Обработка callback:', action);
 
 	if (
 		action.startsWith('add_to_cart_') ||
@@ -21,7 +16,7 @@ const handleCallbackQuery = async (ctx) => {
 		action.startsWith('confirm_payment_') ||
 		action.startsWith('reject_payment_')
 	) {
-		return handleCartCallback(ctx, action, userName);
+		return handleCartCallback(ctx, action);
 	}
 
 	if (
@@ -30,7 +25,7 @@ const handleCallbackQuery = async (ctx) => {
 		action === 'show_reviews' ||
 		action === 'add_review'
 	) {
-		return handleReviewCallback(ctx, action, userName);
+		return handleReviewCallback(ctx, action);
 	}
 
 	if (
@@ -39,12 +34,11 @@ const handleCallbackQuery = async (ctx) => {
 		action === 'show_terms' ||
 		action === 'show_price'
 	) {
-		return handleNavigationCallback(ctx, action, userName);
+		return handleNavigationCallback(ctx, action);
 	}
 
 	if (action === 'noop') {
-		await ctx.answerCallbackQuery();
-		return;
+		return ctx.answerCallbackQuery();
 	}
 
 	await ctx.answerCallbackQuery(`Неизвестное действие: ${action}`);

@@ -3,49 +3,26 @@ const { MESSAGES } = require('../../constants');
 const { editMessage } = require('../utils');
 const { getReviews, updateReviewStatus } = require('../../services/reviews');
 
-const createCallbackHandler =
-	(getText, getKeyboard, onExecute) => async (ctx, userName) => {
-		try {
-			const text =
-				typeof getText === 'function' ? await getText(ctx, userName) : getText;
-			if (!text) {
-				console.error('Текст для callback пустой');
-				await ctx.answerCallbackQuery('Ошибка: нет текста для отображения');
-				return;
-			}
-			const keyboard = getKeyboard(ctx);
-			await editMessage(ctx, text, keyboard);
-			if (onExecute) await onExecute(ctx);
-		} catch (error) {
-			console.error('Ошибка в createCallbackHandler:', error);
-			await ctx.answerCallbackQuery('Ошибка при обработке запроса');
-		}
-	};
-
 const callbackHandlers = {
-	show_reviews: createCallbackHandler(
-		async (ctx) => {
+	show_reviews: {
+		text: async (ctx) => {
 			const reviews = await getReviews();
-			console.log('Все отзывы:', reviews);
 			const approvedReviews = reviews.filter((r) => r.approved);
-			console.log('Одобренные отзывы:', approvedReviews);
-			if (!approvedReviews.length) return MESSAGES.noReviews;
-			const reviewText = approvedReviews
-				.map((r) => `- ${r.text} (@${r.username})`)
-				.join('\n');
-			console.log('Текст отзывов:', reviewText);
-			return `${MESSAGES.reviewsHeader}\n${reviewText}`;
+			return approvedReviews.length
+				? `${MESSAGES.reviewsHeader}\n${approvedReviews
+						.map((r) => `- ${r.text} (@${r.username})`)
+						.join('\n')}`
+				: MESSAGES.noReviews;
 		},
-		() => createBackKeyboard()
-	),
-	add_review: createCallbackHandler(
-		MESSAGES.addReviewPrompt,
-		() => createBackKeyboard(),
-		(ctx) => {
+		keyboard: createBackKeyboard,
+	},
+	add_review: {
+		text: MESSAGES.addReviewPrompt,
+		keyboard: createBackKeyboard,
+		onExecute: (ctx) => {
 			ctx.session.awaitingReview = true;
-			ctx.session.lastAction = 'add_review';
-		}
-	),
+		},
+	},
 	approve_review: async (ctx) => {
 		const reviewId = parseInt(ctx.callbackQuery.data.split('_').pop());
 		const review = await updateReviewStatus(reviewId, true);
@@ -68,7 +45,7 @@ const callbackHandlers = {
 	},
 };
 
-const handleReviewCallback = async (ctx, action, userName) => {
+const handleReviewCallback = async (ctx, action) => {
 	const handlerKey = action.startsWith('approve_review_')
 		? 'approve_review'
 		: action.startsWith('reject_review_')
@@ -76,7 +53,16 @@ const handleReviewCallback = async (ctx, action, userName) => {
 		: action;
 	const handler = callbackHandlers[handlerKey];
 	if (handler) {
-		await handler(ctx, userName);
+		if (typeof handler === 'function') {
+			await handler(ctx);
+		} else {
+			const text =
+				typeof handler.text === 'function'
+					? await handler.text(ctx)
+					: handler.text;
+			await editMessage(ctx, text, handler.keyboard());
+			if (handler.onExecute) await handler.onExecute(ctx);
+		}
 	} else {
 		await ctx.answerCallbackQuery(`Неизвестное действие: ${action}`);
 	}

@@ -1,0 +1,11 @@
+{
+	"hasPaid": false,
+	"awaitingQuestion": false,
+	"awaitingReview": false,
+	"awaitingPaymentPhoto": false,
+	"cart": [],
+	"paidServices": [],
+	"questionCount": 0,
+	"paymentId": null,
+	"lastAction": null
+}
