@@ -3,7 +3,6 @@ const {
 	createCartKeyboard,
 	createBackKeyboard,
 	createStartKeyboard,
-	createPaymentConfirmationKeyboard,
 	InlineKeyboard,
 } = require('../../keyboards');
 const { MESSAGES, SERVICES } = require('../../constants');
@@ -14,6 +13,8 @@ const {
 	decreaseQuantity,
 } = require('../../services/cart');
 const { addPayment, updatePaymentStatus } = require('../../services/payments');
+
+const { FileAdapter } = require('@grammyjs/storage-file');
 
 const handleCartCallback = async (ctx, action, userName) => {
 	if (action.startsWith('add_to_cart_')) {
@@ -80,28 +81,47 @@ const handleCartCallback = async (ctx, action, userName) => {
 		const payment = await updatePaymentStatus(paymentId, 'confirmed');
 		if (payment) {
 			const questionCount = payment.questionCount;
-			console.log(payment.questionCount);
-			ctx.session.paidServices = payment.cart.flatMap((item) =>
+
+			// Получаем сессию пользователя
+			const storage = new FileAdapter({ dir: './src/data/sessions' });
+			const userSession = (await storage.read(payment.userId.toString())) || {
+				hasPaid: false,
+				awaitingQuestion: false,
+				awaitingReview: false,
+				awaitingPaymentPhoto: false,
+				cart: [],
+				paidServices: [],
+				questionCount: 0,
+				paymentId: null,
+			};
+
+			// Обновляем сессию пользователя
+			userSession.paidServices = payment.cart.flatMap((item) =>
 				Array(item.quantity).fill({
 					name: item.name,
 					price: item.price,
 					id: item.id,
 				})
 			);
-			ctx.session.hasPaid = true;
-			ctx.session.questionCount = questionCount;
-			ctx.session.awaitingQuestion = questionCount > 0;
-			ctx.session.cart = [];
+			userSession.hasPaid = true;
+			userSession.questionCount = questionCount;
+			userSession.awaitingQuestion = questionCount > 0;
+			userSession.cart = [];
+
+			// Сохраняем обновленную сессию пользователя
+			await storage.write(payment.userId.toString(), userSession);
+
+			// Отправляем сообщение пользователю
 			await ctx.api.sendMessage(
 				payment.userId,
 				`${MESSAGES.paymentConfirmed}\n${MESSAGES.paymentTotal.replace(
 					'%total',
 					payment.total
-				)}\n` + `У вас доступно вопросов: ${questionCount}`,
+				)}\nУ вас доступно вопросов: ${questionCount}`,
 				{ reply_markup: createStartKeyboard(questionCount) }
 			);
-			console.log(ctx.session);
-			// Отправляем новое сообщение вместо редактирования
+
+			// Сообщение администратору
 			await ctx.reply('Платеж подтвержден', {
 				parse_mode: 'Markdown',
 				reply_markup: createBackKeyboard(ctx.session.questionCount),
@@ -117,9 +137,8 @@ const handleCartCallback = async (ctx, action, userName) => {
 			await ctx.api.sendMessage(
 				payment.userId,
 				'Ваш платеж был отклонен. Пожалуйста, свяжитесь с администратором.',
-				{ reply_markup: createStartKeyboard(ctx.session.questionCount) }
+				{ reply_markup: createStartKeyboard(0) }
 			);
-			// Отправляем новое сообщение вместо редактирования
 			await ctx.reply('Платеж отклонен', {
 				parse_mode: 'Markdown',
 				reply_markup: createBackKeyboard(ctx.session.questionCount),
