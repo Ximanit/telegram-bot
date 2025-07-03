@@ -15,7 +15,7 @@ const handleText = async (ctx) => {
 		return handleReviewText(ctx);
 	}
 
-	if (ctx.session.awaitingQuestion) {
+	if (ctx.session.awaitingQuestion || ctx.session.currentQuestionId) {
 		return handleQuestionText(ctx);
 	}
 

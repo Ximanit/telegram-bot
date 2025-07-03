@@ -40,7 +40,7 @@ const createCartKeyboard = (cart) => {
 	return keyboard;
 };
 
-const createBackKeyboard = (questionCount = 0) => {
+const createBackKeyboard = () => {
 	return new InlineKeyboard().text('Назад', 'back_to_menu');
 };
 
@@ -56,6 +56,23 @@ const createPaymentConfirmationKeyboard = (paymentId) => {
 		.text('Отклонить оплату ❌', `reject_payment_${paymentId}`);
 };
 
+const createQuestionActionKeyboard = (questionId) => {
+	return new InlineKeyboard()
+		.text('Ответить', `answer_question_${questionId}`)
+		.text('Отклонить', `reject_question_${questionId}`)
+		.text('Закрыть', `close_question_${questionId}`);
+};
+
+const createUserQuestionActionKeyboard = (questionId) => {
+	return new InlineKeyboard()
+		.text('Задавать уточнения', `clarify_question_${questionId}`)
+		.text('Закрыть вопрос', `close_question_${questionId}`);
+};
+
+const createReviewPromptKeyboard = () => {
+	return new InlineKeyboard().text('Оставить отзыв', 'add_review');
+};
+
 module.exports = {
 	createStartKeyboard,
 	createPriceKeyboard,
@@ -63,4 +80,7 @@ module.exports = {
 	createBackKeyboard,
 	createReviewModerationKeyboard,
 	createPaymentConfirmationKeyboard,
+	createQuestionActionKeyboard,
+	createUserQuestionActionKeyboard,
+	createReviewPromptKeyboard,
 };

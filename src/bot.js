@@ -14,8 +14,15 @@ const {
 	createPaymentConfirmationKeyboard,
 	createStartKeyboard,
 	createBackKeyboard,
+	createQuestionActionKeyboard,
+	createUserQuestionActionKeyboard,
 } = require('./keyboards');
 const { handleError } = require('./handlers/utils');
+const {
+	updateQuestionStatus,
+	addDialogueMessage,
+	getQuestions,
+} = require('./services/questions');
 
 if (!process.env.API_KEY || !process.env.ADMIN_ID) {
 	console.error('Ошибка: API_KEY или ADMIN_ID не указаны в .env');
@@ -32,6 +39,9 @@ bot.use(
 			awaitingQuestion: false,
 			awaitingReview: false,
 			awaitingPaymentPhoto: false,
+			awaitingAnswer: false,
+			awaitingRejectReason: false,
+			currentQuestionId: null,
 			cart: [],
 			paidServices: [],
 			questionCount: 0,
@@ -57,7 +67,69 @@ bot.on('callback_query:data', async (ctx) => {
 	}
 });
 
-bot.on('message:text', handleText);
+bot.on('message:text', async (ctx) => {
+	if (
+		ctx.session.awaitingRejectReason &&
+		ctx.from.id.toString() === process.env.ADMIN_ID
+	) {
+		const questionId = ctx.session.currentQuestionId;
+		const rejectReason = ctx.message.text;
+		const question = await updateQuestionStatus(
+			questionId,
+			'rejected',
+			rejectReason
+		);
+		if (question) {
+			await ctx.api.sendMessage(
+				question.userId,
+				MESSAGES.questionRejectedWithReason.replace('%reason', rejectReason),
+				{
+					parse_mode: 'Markdown',
+					reply_markup: createStartKeyboard(ctx.session.questionCount),
+				}
+			);
+			await ctx.reply('Вопрос отклонен, причина отправлена пользователю.', {
+				parse_mode: 'Markdown',
+				reply_markup: createBackKeyboard(),
+			});
+			ctx.session.awaitingRejectReason = false;
+			ctx.session.currentQuestionId = null;
+		} else {
+			await ctx.reply('Ошибка: вопрос не найден.', {
+				parse_mode: 'Markdown',
+				reply_markup: createBackKeyboard(),
+			});
+		}
+	} else if (
+		ctx.session.awaitingAnswer &&
+		ctx.from.id.toString() === process.env.ADMIN_ID
+	) {
+		const questionId = ctx.session.currentQuestionId;
+		const answer = ctx.message.text;
+		const question = await addDialogueMessage(questionId, 'admin', answer);
+		if (question) {
+			await ctx.api.sendMessage(
+				question.userId,
+				`Сообщение от администратора по вашему вопросу #${questionId}:\n${answer}`,
+				{
+					parse_mode: 'Markdown',
+					reply_markup: createUserQuestionActionKeyboard(questionId),
+				}
+			);
+			await ctx.reply('Сообщение отправлено пользователю.', {
+				parse_mode: 'Markdown',
+			});
+			ctx.session.awaitingAnswer = false;
+		} else {
+			await ctx.reply('Ошибка: вопрос не найден.', {
+				parse_mode: 'Markdown',
+				reply_markup: createBackKeyboard(),
+			});
+		}
+	} else {
+		await handleText(ctx);
+	}
+});
 
 bot.on('message:photo', async (ctx) => {
 	if (ctx.session.awaitingPaymentPhoto && ctx.session.paymentId) {

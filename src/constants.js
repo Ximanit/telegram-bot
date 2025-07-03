@@ -41,6 +41,9 @@ module.exports = {
 		paymentRejected:
 			'Ваш платеж был отклонен. Пожалуйста, свяжитесь с администратором.',
 		paymentReceived: 'Новый платеж от %username\nСумма: %total руб.',
+		dialogueMessageSent: 'Ваше сообщение отправлено.',
+		questionRejectedWithReason: 'Ваш вопрос был отклонен. Причина: %reason',
+		promptReviewAfterClose: 'Ваш вопрос был закрыт. Хотите оставить отзыв?',
 	},
 	SERVICES: [{ id: 'single_question', name: 'Ответ на 1 вопрос', price: 2000 }],
 };

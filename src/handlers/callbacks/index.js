@@ -1,6 +1,7 @@
 const { handleCartCallback } = require('./cart');
 const { handleNavigationCallback } = require('./navigation');
 const { handleReviewCallback } = require('./reviews');
+const { handleQuestionCallback } = require('./questions');
 
 const handleCallbackQuery = async (ctx) => {
 	const action = ctx.callbackQuery.data;
@@ -35,6 +36,15 @@ const handleCallbackQuery = async (ctx) => {
 		action === 'show_price'
 	) {
 		return handleNavigationCallback(ctx, action);
+	}
+
+	if (
+		action.startsWith('answer_question_') ||
+		action.startsWith('reject_question_') ||
+		action.startsWith('close_question_') ||
+		action.startsWith('clarify_question_')
+	) {
+		return handleQuestionCallback(ctx, action);
 	}
 
 	if (action === 'noop') {
