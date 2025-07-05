@@ -17,12 +17,14 @@ const {
 	createQuestionActionKeyboard,
 	createUserQuestionActionKeyboard,
 } = require('./keyboards');
-const { handleError } = require('./handlers/utils');
+const { handleError, editMessage } = require('./handlers/utils');
 const {
 	updateQuestionStatus,
 	addDialogueMessage,
 	getQuestions,
 } = require('./services/questions');
+
+const { MESSAGES } = require('./constants');
 
 if (!process.env.API_KEY || !process.env.ADMIN_ID) {
 	console.error('Ошибка: API_KEY или ADMIN_ID не указаны в .env');
@@ -46,6 +48,7 @@ bot.use(
 			paidServices: [],
 			questionCount: 0,
 			paymentId: null,
+			lastMessageId: null,
 		}),
 	})
 );
@@ -88,17 +91,15 @@ bot.on('message:text', async (ctx) => {
 					reply_markup: createStartKeyboard(ctx.session.questionCount),
 				}
 			);
-			await ctx.reply('Вопрос отклонен, причина отправлена пользователю.', {
-				parse_mode: 'Markdown',
-				reply_markup: createBackKeyboard(),
-			});
+			await editMessage(
+				ctx,
+				'Вопрос отклонен, причина отправлена пользователю.',
+				createBackKeyboard()
+			);
 			ctx.session.awaitingRejectReason = false;
 			ctx.session.currentQuestionId = null;
 		} else {
-			await ctx.reply('Ошибка: вопрос не найден.', {
-				parse_mode: 'Markdown',
-				reply_markup: createBackKeyboard(),
-			});
+			await editMessage(ctx, 'Ошибка: вопрос не найден.', createBackKeyboard());
 		}
 	} else if (
 		ctx.session.awaitingAnswer &&
@@ -116,15 +117,14 @@ bot.on('message:text', async (ctx) => {
 					reply_markup: createUserQuestionActionKeyboard(questionId),
 				}
 			);
-			await ctx.reply('Сообщение отправлено пользователю.', {
-				parse_mode: 'Markdown',
-			});
+			await editMessage(
+				ctx,
+				'Сообщение отправлено пользователю.',
+				createBackKeyboard()
+			);
 			ctx.session.awaitingAnswer = false;
 		} else {
-			await ctx.reply('Ошибка: вопрос не найден.', {
-				parse_mode: 'Markdown',
-				reply_markup: createBackKeyboard(),
-			});
+			await editMessage(ctx, 'Ошибка: вопрос не найден.', createBackKeyboard());
 		}
 	} else {
 		await handleText(ctx);

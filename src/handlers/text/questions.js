@@ -1,3 +1,4 @@
+// src/handlers/text/questions.js
 const {
 	createStartKeyboard,
 	createBackKeyboard,
@@ -10,6 +11,7 @@ const {
 	addDialogueMessage,
 	getQuestions,
 } = require('../../services/questions');
+const { editMessage } = require('../utils');
 
 const validateQuestion = (text) => {
 	const trimmed = text.trim();
@@ -20,18 +22,20 @@ const handleQuestionText = async (ctx) => {
 	if (ctx.session.awaitingQuestion) {
 		if (ctx.session.questionCount <= 0) {
 			ctx.session.awaitingQuestion = false;
-			return ctx.reply(MESSAGES.noQuestionService, {
-				parse_mode: 'Markdown',
-				reply_markup: createBackKeyboard(ctx.session.questionCount),
-			});
+			return editMessage(
+				ctx,
+				MESSAGES.noQuestionService,
+				createBackKeyboard(ctx.session.questionCount)
+			);
 		}
 
 		const question = validateQuestion(ctx.message.text);
 		if (!question) {
-			return ctx.reply(MESSAGES.questionTooShort, {
-				parse_mode: 'Markdown',
-				reply_markup: createBackKeyboard(ctx.session.questionCount),
-			});
+			return editMessage(
+				ctx,
+				MESSAGES.questionTooShort,
+				createBackKeyboard(ctx.session.questionCount)
+			);
 		}
 
 		const userInfo = ctx.from.username
@@ -87,19 +91,18 @@ const handleQuestionText = async (ctx) => {
 			});
 		} else {
 			ctx.session.currentQuestionId = null;
-			await ctx.reply(
+			await editMessage(
+				ctx,
 				'Диалог по этому вопросу завершен или вопрос не найден.',
-				{
-					parse_mode: 'Markdown',
-					reply_markup: createStartKeyboard(ctx.session.questionCount),
-				}
+				createStartKeyboard(ctx.session.questionCount)
 			);
 		}
 	} else {
-		await ctx.reply(MESSAGES.unknownMessage, {
-			parse_mode: 'Markdown',
-			reply_markup: createStartKeyboard(ctx.session.questionCount),
-		});
+		await editMessage(
+			ctx,
+			MESSAGES.unknownMessage,
+			createStartKeyboard(ctx.session.questionCount)
+		);
 	}
 };
 

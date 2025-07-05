@@ -24,21 +24,43 @@ const editMessage = async (ctx, text, keyboard) => {
 		if (!text || typeof text !== 'string') {
 			throw new Error('Текст сообщения пустой или некорректный');
 		}
-		await ctx.editMessageText(text, {
+
+		// Проверяем, есть ли lastMessageId в сессии и можно ли редактировать сообщение
+		if (ctx.session.lastMessageId && ctx.chat) {
+			try {
+				await ctx.api.editMessageText(
+					ctx.chat.id,
+					ctx.session.lastMessageId,
+					text,
+					{
+						parse_mode: 'Markdown',
+						reply_markup: keyboard,
+					}
+				);
+				if (ctx.callbackQuery) await ctx.answerCallbackQuery();
+				return;
+			} catch (error) {
+				if (
+					error.description?.includes('message is not modified') ||
+					error.description?.includes('message to edit not found')
+				) {
+					// Если редактирование невозможно, отправляем новое сообщение
+				} else {
+					throw error; // Пробрасываем другие ошибки
+				}
+			}
+		}
+
+		// Отправляем новое сообщение и сохраняем его ID
+		const sentMessage = await ctx.reply(text, {
 			parse_mode: 'Markdown',
 			reply_markup: keyboard,
 		});
+		ctx.session.lastMessageId = sentMessage.message_id; // Сохраняем ID нового сообщения
+		if (ctx.callbackQuery) await ctx.answerCallbackQuery();
 	} catch (error) {
-		if (
-			error.description?.includes('message is not modified') ||
-			error.description?.includes('message to edit not found')
-		) {
-			await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: keyboard });
-		} else {
-			await handleError(error, ctx);
-		}
+		await handleError(error, ctx);
 	}
-	if (ctx.callbackQuery) await ctx.answerCallbackQuery();
 };
 
 const cartUtils = {
