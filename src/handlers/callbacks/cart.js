@@ -42,7 +42,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 			MESSAGES.confirmClearCart,
 			new InlineKeyboard()
 				.text('Да, очистить', 'confirm_clear_cart')
-				.text('Отмена', 'view_cart')
+				.text('Назад', 'back')
 		);
 	} else if (action === 'confirm_clear_cart') {
 		ctx.session.cart = [];
@@ -81,21 +81,23 @@ const handleCartCallback = async (ctx, action, userName) => {
 		if (payment) {
 			const questionCount = payment.questionCount;
 
-			// Получаем сессию пользователя
 			const storage = new FileAdapter({ dir: './src/data/sessions' });
 			const userSession = (await storage.read(payment.userId.toString())) || {
 				hasPaid: false,
 				awaitingQuestion: false,
 				awaitingReview: false,
 				awaitingPaymentPhoto: false,
+				awaitingAnswer: false,
+				awaitingRejectReason: false,
+				currentQuestionId: null,
 				cart: [],
 				paidServices: [],
 				questionCount: 0,
 				paymentId: null,
 				lastMessageId: {},
+				history: [],
 			};
 
-			// Обновляем сессию пользователя
 			userSession.paidServices = payment.cart.flatMap((item) =>
 				Array(item.quantity).fill({
 					name: item.name,
@@ -108,15 +110,13 @@ const handleCartCallback = async (ctx, action, userName) => {
 			userSession.awaitingQuestion = questionCount > 0;
 			userSession.cart = [];
 
-			// Создаем временный контекст для отправки сообщения пользователю
 			const userCtx = {
 				chat: { id: payment.userId },
 				session: userSession,
 				api: ctx.api,
-				answerCallbackQuery: () => {}, // Пустая функция, так как это не callback
+				answerCallbackQuery: () => {},
 			};
 
-			// Отправляем сообщение пользователю с редактированием
 			await sendOrEditMessage(
 				userCtx,
 				`${MESSAGES.paymentConfirmed}\n${MESSAGES.paymentTotal.replace(
@@ -126,10 +126,8 @@ const handleCartCallback = async (ctx, action, userName) => {
 				createStartKeyboard(questionCount)
 			);
 
-			// Сохраняем обновленную сессию пользователя
 			await storage.write(payment.userId.toString(), userSession);
 
-			// Сообщение администратору
 			await sendOrEditMessage(
 				ctx,
 				'Платеж подтвержден',
@@ -143,7 +141,6 @@ const handleCartCallback = async (ctx, action, userName) => {
 		const paymentId = parseInt(action.replace('reject_payment_', ''));
 		const payment = await updatePaymentStatus(paymentId, 'rejected');
 		if (payment) {
-			// Получаем сессию пользователя
 			const storage = new FileAdapter({ dir: './src/data/sessions' });
 			const userSession = (await storage.read(payment.userId.toString())) || {
 				hasPaid: false,
@@ -155,9 +152,9 @@ const handleCartCallback = async (ctx, action, userName) => {
 				questionCount: 0,
 				paymentId: null,
 				lastMessageId: {},
+				history: [],
 			};
 
-			// Создаем временный контекст для отправки сообщения пользователю
 			const userCtx = {
 				chat: { id: payment.userId },
 				session: userSession,
@@ -165,17 +162,14 @@ const handleCartCallback = async (ctx, action, userName) => {
 				answerCallbackQuery: () => {},
 			};
 
-			// Отправляем сообщение пользователю с редактированием
 			await sendOrEditMessage(
 				userCtx,
 				'Ваш платеж был отклонен. Пожалуйста, свяжитесь с администратором.',
 				createStartKeyboard(0)
 			);
 
-			// Сохраняем обновленную сессию пользователя
 			await storage.write(payment.userId.toString(), userSession);
 
-			// Сообщение администратору
 			await sendOrEditMessage(
 				ctx,
 				'Платеж отклонен',

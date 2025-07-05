@@ -2,6 +2,7 @@ const {
 	createStartKeyboard,
 	createBackKeyboard,
 	createQuestionActionKeyboard,
+	createUserQuestionActionKeyboard,
 } = require('../../keyboards');
 const { MESSAGES } = require('../../constants');
 const {
@@ -88,6 +89,7 @@ const handleQuestionText = async (ctx) => {
 			);
 			const sentMessage = await ctx.reply(MESSAGES.dialogueMessageSent, {
 				parse_mode: 'Markdown',
+				reply_markup: createUserQuestionActionKeyboard(question.id),
 			});
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 		} else {

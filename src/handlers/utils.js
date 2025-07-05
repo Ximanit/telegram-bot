@@ -20,7 +20,13 @@ const handleError = async (err, ctx) => {
 	}
 };
 
-const sendOrEditMessage = async (ctx, text, keyboard, forceNew = false) => {
+const sendOrEditMessage = async (
+	ctx,
+	text,
+	keyboard,
+	forceNew = false,
+	skipHistory = false
+) => {
 	try {
 		if (!text || typeof text !== 'string') {
 			throw new Error('Текст сообщения пустой или некорректный');
@@ -31,13 +37,42 @@ const sendOrEditMessage = async (ctx, text, keyboard, forceNew = false) => {
 			throw new Error('Chat ID не найден');
 		}
 
-		// Если forceNew или нет lastMessageId для этого чата, отправляем новое сообщение
+		// Отладка: логируем текущее состояние истории
+		console.log(
+			`[sendOrEditMessage] Chat ${chatId}, History before:`,
+			JSON.stringify(ctx.session.history)
+		);
+
+		// Сохраняем текущее состояние в историю, если это не действие "Назад" и не указано skipHistory
+		if (!skipHistory && !ctx.callbackQuery?.data?.startsWith('back')) {
+			const lastHistoryEntry =
+				ctx.session.history[ctx.session.history.length - 1];
+			// Проверяем, чтобы не добавлять дубликат текущего состояния
+			if (!lastHistoryEntry || lastHistoryEntry.text !== text) {
+				ctx.session.history.push({
+					text,
+					keyboard,
+				});
+				console.log(`[sendOrEditMessage] Добавлено в историю: ${text}`);
+			} else {
+				console.log(
+					`[sendOrEditMessage] Пропущено добавление в историю (дубликат): ${text}`
+				);
+			}
+			// Ограничиваем глубину истории до 5 записей
+			ctx.session.history = ctx.session.history.slice(-5);
+		}
+
+		// Если forceNew или нет lastMessageId, отправляем новое сообщение
 		if (forceNew || !ctx.session.lastMessageId[chatId]) {
 			const sentMessage = await ctx.reply(text, {
 				parse_mode: 'Markdown',
 				reply_markup: keyboard,
 			});
 			ctx.session.lastMessageId[chatId] = sentMessage.message_id;
+			console.log(
+				`[sendOrEditMessage] Отправлено новое сообщение: ${text}, message_id: ${sentMessage.message_id}`
+			);
 			if (ctx.callbackQuery) await ctx.answerCallbackQuery();
 			return;
 		}
@@ -53,23 +88,37 @@ const sendOrEditMessage = async (ctx, text, keyboard, forceNew = false) => {
 					reply_markup: keyboard,
 				}
 			);
+			console.log(
+				`[sendOrEditMessage] Отредактировано сообщение: ${text}, message_id: ${ctx.session.lastMessageId[chatId]}`
+			);
 			if (ctx.callbackQuery) await ctx.answerCallbackQuery();
 		} catch (error) {
+			console.warn(
+				`[sendOrEditMessage] Ошибка редактирования сообщения ${ctx.session.lastMessageId[chatId]}: ${error.description}`
+			);
 			if (
 				error.description?.includes('message is not modified') ||
 				error.description?.includes('message to edit not found') ||
 				error.description?.includes('bad request')
 			) {
-				// Если редактирование невозможно, отправляем новое сообщение
 				const sentMessage = await ctx.reply(text, {
 					parse_mode: 'Markdown',
 					reply_markup: keyboard,
 				});
 				ctx.session.lastMessageId[chatId] = sentMessage.message_id;
+				console.log(
+					`[sendOrEditMessage] Редактирование не удалось, отправлено новое сообщение: ${text}, message_id: ${sentMessage.message_id}`
+				);
 			} else {
 				throw error;
 			}
 		}
+
+		// Отладка: логируем историю после обработки
+		console.log(
+			`[sendOrEditMessage] Chat ${chatId}, History after:`,
+			JSON.stringify(ctx.session.history)
+		);
 	} catch (error) {
 		await handleError(error, ctx);
 	}

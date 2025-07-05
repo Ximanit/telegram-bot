@@ -47,7 +47,6 @@ const handleQuestionCallback = async (ctx, action) => {
 					? 'Администратор'
 					: 'Пользователь';
 
-			// Получаем сессию пользователя
 			const storage = new FileAdapter({ dir: './src/data/sessions' });
 			const userSession = (await storage.read(question.userId.toString())) || {
 				hasPaid: false,
@@ -62,9 +61,9 @@ const handleQuestionCallback = async (ctx, action) => {
 				questionCount: 0,
 				paymentId: null,
 				lastMessageId: {},
+				history: [],
 			};
 
-			// Создаем временный контекст для отправки сообщения пользователю
 			const userCtx = {
 				chat: { id: question.userId },
 				session: userSession,
@@ -72,7 +71,6 @@ const handleQuestionCallback = async (ctx, action) => {
 				answerCallbackQuery: () => {},
 			};
 
-			// Отправляем сообщение пользователю с предложением оставить отзыв
 			const messageText =
 				sender === 'Администратор'
 					? MESSAGES.promptReviewAfterCloseAdmin
@@ -84,11 +82,7 @@ const handleQuestionCallback = async (ctx, action) => {
 				createReviewPromptKeyboard()
 			);
 
-			// Сохраняем обновленную сессию пользователя
 			await storage.write(question.userId.toString(), userSession);
-
-			// Сообщение администратору или пользователю, закрывшему вопрос
-			// await sendOrEditMessage(ctx, 'Вопрос закрыт.', createBackKeyboard());
 			ctx.session.currentQuestionId = null;
 			await ctx.answerCallbackQuery('Вопрос закрыт');
 		} else {

@@ -18,7 +18,7 @@ const createPriceKeyboard = () => {
 		.text('Ответ на 1 вопрос — 2000 руб.', 'add_to_cart_single_question')
 		.row()
 		.text('Просмотреть корзину', 'view_cart')
-		.text('Назад', 'back_to_menu');
+		.text('Назад', 'back');
 };
 
 const createCartKeyboard = (cart) => {
@@ -36,12 +36,12 @@ const createCartKeyboard = (cart) => {
 		.text('Очистить корзину', 'clear_cart')
 		.text('Оплатить', 'pay_cart')
 		.row()
-		.text('Назад', 'back_to_price');
+		.text('Назад', 'back');
 	return keyboard;
 };
 
 const createBackKeyboard = () => {
-	return new InlineKeyboard().text('Назад', 'back_to_menu');
+	return new InlineKeyboard().text('Назад', 'back');
 };
 
 const createReviewModerationKeyboard = (reviewId) => {

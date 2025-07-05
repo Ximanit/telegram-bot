@@ -16,6 +16,7 @@ const {
 	createBackKeyboard,
 	createQuestionActionKeyboard,
 	createUserQuestionActionKeyboard,
+	createReviewPromptKeyboard,
 } = require('./keyboards');
 const { handleError, sendOrEditMessage } = require('./handlers/utils');
 const {
@@ -67,6 +68,70 @@ bot.on('callback_query:data', async (ctx) => {
 			createBackKeyboard(ctx.session.questionCount)
 		);
 		await ctx.answerCallbackQuery();
+	} else if (ctx.callbackQuery.data === 'back') {
+		// Обработка кнопки "Назад"
+		ctx.session.awaitingQuestion = false;
+		ctx.session.awaitingReview = false;
+		ctx.session.awaitingPaymentPhoto = false;
+		ctx.session.awaitingAnswer = false;
+		ctx.session.awaitingRejectReason = false;
+		ctx.session.currentQuestionId = null;
+		ctx.session.lastAction = null;
+
+		// Отладка: логируем историю перед обработкой
+		console.log(
+			`[back] Chat ${ctx.chat.id}, History before:`,
+			JSON.stringify(ctx.session.history)
+		);
+
+		if (ctx.session.history.length > 1) {
+			// Удаляем текущее состояние, если оно есть
+			ctx.session.history.pop();
+			const previousState = ctx.session.history.pop();
+			if (previousState) {
+				await sendOrEditMessage(
+					ctx,
+					previousState.text,
+					previousState.keyboard,
+					false,
+					true // Пропускаем добавление в историю
+				);
+				console.log(`[back] Восстановлено состояние: ${previousState.text}`);
+			} else {
+				console.warn(
+					`[back] Пустое состояние в истории для chat ${ctx.chat.id}`
+				);
+				const userName = ctx.from?.first_name || 'Друг';
+				await sendOrEditMessage(
+					ctx,
+					MESSAGES.start.replace('%s', userName),
+					createStartKeyboard(ctx.session.questionCount),
+					false,
+					true
+				);
+			}
+		} else {
+			// Если в истории одно или ноль состояний, возвращаемся в начальное меню
+			ctx.session.history = []; // Очищаем историю
+			const userName = ctx.from?.first_name || 'Друг';
+			await sendOrEditMessage(
+				ctx,
+				MESSAGES.start.replace('%s', userName),
+				createStartKeyboard(ctx.session.questionCount),
+				false,
+				true
+			);
+			console.log(
+				`[back] История пуста или содержит одно состояние, возвращаемся в начальное меню`
+			);
+		}
+
+		// Отладка: логируем историю после обработки
+		console.log(
+			`[back] Chat ${ctx.chat.id}, History after:`,
+			JSON.stringify(ctx.session.history)
+		);
+		await ctx.answerCallbackQuery();
 	} else {
 		await handleCallbackQuery(ctx);
 	}
@@ -99,6 +164,7 @@ bot.on('message:text', async (ctx) => {
 				questionCount: 0,
 				paymentId: null,
 				lastMessageId: {},
+				history: [],
 			};
 
 			const userCtx = {
@@ -110,8 +176,11 @@ bot.on('message:text', async (ctx) => {
 
 			await sendOrEditMessage(
 				userCtx,
-				MESSAGES.questionRejectedWithReason.replace('%reason', rejectReason),
-				createStartKeyboard(userSession.questionCount)
+				`${MESSAGES.questionRejectedWithReason.replace(
+					'%reason',
+					rejectReason
+				)}\n${MESSAGES.promptReviewAfterClose}`,
+				createReviewPromptKeyboard()
 			);
 
 			await storage.write(question.userId.toString(), userSession);
@@ -141,7 +210,6 @@ bot.on('message:text', async (ctx) => {
 		const answer = ctx.message.text;
 		const question = await addDialogueMessage(questionId, 'admin', answer);
 		if (question) {
-			// Получаем сессию пользователя
 			const storage = new FileAdapter({ dir: './src/data/sessions' });
 			const userSession = (await storage.read(question.userId.toString())) || {
 				hasPaid: false,
@@ -156,9 +224,9 @@ bot.on('message:text', async (ctx) => {
 				questionCount: 0,
 				paymentId: null,
 				lastMessageId: {},
+				history: [],
 			};
 
-			// Создаем временный контекст для отправки сообщения пользователю
 			const userCtx = {
 				chat: { id: question.userId },
 				session: userSession,
@@ -166,14 +234,12 @@ bot.on('message:text', async (ctx) => {
 				answerCallbackQuery: () => {},
 			};
 
-			// Отправляем сообщение пользователю с редактированием
 			await sendOrEditMessage(
 				userCtx,
 				`Сообщение от администратора по вашему вопросу #${questionId}:\n${answer}`,
 				createUserQuestionActionKeyboard(questionId)
 			);
 
-			// Сохраняем обновленную сессию пользователя
 			await storage.write(question.userId.toString(), userSession);
 
 			const sentMessage = await ctx.reply(
