@@ -1,4 +1,3 @@
-// src/handlers/callbacks/questions.js
 const {
 	createBackKeyboard,
 	createQuestionActionKeyboard,
@@ -10,7 +9,8 @@ const {
 	addDialogueMessage,
 } = require('../../services/questions');
 const { MESSAGES } = require('../../constants');
-const { editMessage } = require('../utils');
+const { sendOrEditMessage } = require('../utils');
+const { FileAdapter } = require('@grammyjs/storage-file');
 
 const handleQuestionCallback = async (ctx, action) => {
 	if (action.startsWith('answer_question_')) {
@@ -19,7 +19,7 @@ const handleQuestionCallback = async (ctx, action) => {
 		if (question) {
 			ctx.session.awaitingAnswer = true;
 			ctx.session.currentQuestionId = questionId;
-			await editMessage(
+			await sendOrEditMessage(
 				ctx,
 				'Пожалуйста, введите ваш ответ:',
 				createBackKeyboard()
@@ -32,7 +32,7 @@ const handleQuestionCallback = async (ctx, action) => {
 		const questionId = parseInt(action.replace('reject_question_', ''));
 		ctx.session.awaitingRejectReason = true;
 		ctx.session.currentQuestionId = questionId;
-		await editMessage(
+		await sendOrEditMessage(
 			ctx,
 			'Пожалуйста, укажите причину отклонения:',
 			createBackKeyboard()
@@ -46,24 +46,56 @@ const handleQuestionCallback = async (ctx, action) => {
 				ctx.from.id.toString() === process.env.ADMIN_ID
 					? 'Администратор'
 					: 'Пользователь';
-			if (sender === 'Пользователь') {
-				await ctx.api.sendMessage(
-					question.userId,
-					MESSAGES.promptReviewAfterClose,
-					{
-						parse_mode: 'Markdown',
-						reply_markup: createReviewPromptKeyboard(),
-					}
-				);
-			}
-			await editMessage(ctx, 'Вопрос закрыт.', createBackKeyboard());
+
+			// Получаем сессию пользователя
+			const storage = new FileAdapter({ dir: './src/data/sessions' });
+			const userSession = (await storage.read(question.userId.toString())) || {
+				hasPaid: false,
+				awaitingQuestion: false,
+				awaitingReview: false,
+				awaitingPaymentPhoto: false,
+				awaitingAnswer: false,
+				awaitingRejectReason: false,
+				currentQuestionId: null,
+				cart: [],
+				paidServices: [],
+				questionCount: 0,
+				paymentId: null,
+				lastMessageId: {},
+			};
+
+			// Создаем временный контекст для отправки сообщения пользователю
+			const userCtx = {
+				chat: { id: question.userId },
+				session: userSession,
+				api: ctx.api,
+				answerCallbackQuery: () => {},
+			};
+
+			// Отправляем сообщение пользователю с предложением оставить отзыв
+			const messageText =
+				sender === 'Администратор'
+					? MESSAGES.promptReviewAfterCloseAdmin
+					: MESSAGES.promptReviewAfterClose;
+
+			await sendOrEditMessage(
+				userCtx,
+				messageText,
+				createReviewPromptKeyboard()
+			);
+
+			// Сохраняем обновленную сессию пользователя
+			await storage.write(question.userId.toString(), userSession);
+
+			// Сообщение администратору или пользователю, закрывшему вопрос
+			// await sendOrEditMessage(ctx, 'Вопрос закрыт.', createBackKeyboard());
 			ctx.session.currentQuestionId = null;
 			await ctx.answerCallbackQuery('Вопрос закрыт');
 		} else {
 			await ctx.answerCallbackQuery('Ошибка: вопрос не найден');
 		}
 	} else if (action.startsWith('clarify_question_')) {
-		await editMessage(
+		await sendOrEditMessage(
 			ctx,
 			'Пожалуйста, отправьте уточнение:',
 			createBackKeyboard()

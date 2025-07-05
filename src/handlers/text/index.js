@@ -1,13 +1,16 @@
-// src/handlers/text/index.js
 const { createStartKeyboard } = require('../../keyboards');
 const { MESSAGES } = require('../../constants');
 const { handleReviewText } = require('./reviews');
 const { handleQuestionText } = require('./questions');
-const { editMessage } = require('../utils');
 
 const handleText = async (ctx) => {
 	if (ctx.message.text === 'Мяу') {
-		return editMessage(ctx, MESSAGES.meow, createStartKeyboard());
+		const sentMessage = await ctx.reply(MESSAGES.meow, {
+			parse_mode: 'Markdown',
+			reply_markup: createStartKeyboard(),
+		});
+		ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+		return;
 	}
 
 	if (ctx.session.awaitingReview) {
@@ -18,7 +21,11 @@ const handleText = async (ctx) => {
 		return handleQuestionText(ctx);
 	}
 
-	return editMessage(ctx, MESSAGES.unknownMessage, createStartKeyboard());
+	const sentMessage = await ctx.reply(MESSAGES.unknownMessage, {
+		parse_mode: 'Markdown',
+		reply_markup: createStartKeyboard(ctx.session.questionCount),
+	});
+	ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 };
 
 module.exports = { handleText };

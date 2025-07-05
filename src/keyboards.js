@@ -70,7 +70,9 @@ const createUserQuestionActionKeyboard = (questionId) => {
 };
 
 const createReviewPromptKeyboard = () => {
-	return new InlineKeyboard().text('Оставить отзыв', 'add_review');
+	return new InlineKeyboard()
+		.text('Оставить отзыв', 'add_review')
+		.text('Назад', 'back_to_menu');
 };
 
 module.exports = {

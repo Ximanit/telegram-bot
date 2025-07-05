@@ -1,6 +1,6 @@
 const { createBackKeyboard } = require('../../keyboards');
 const { MESSAGES } = require('../../constants');
-const { editMessage } = require('../utils');
+const { sendOrEditMessage } = require('../utils');
 const { getReviews, updateReviewStatus } = require('../../services/reviews');
 
 const callbackHandlers = {
@@ -28,7 +28,11 @@ const callbackHandlers = {
 		const review = await updateReviewStatus(reviewId, true);
 		if (review) {
 			await ctx.answerCallbackQuery(MESSAGES.reviewApproved);
-			await editMessage(ctx, MESSAGES.reviewsHeader, createBackKeyboard());
+			await sendOrEditMessage(
+				ctx,
+				MESSAGES.reviewsHeader,
+				createBackKeyboard()
+			);
 		} else {
 			await ctx.answerCallbackQuery('Ошибка: отзыв не найден');
 		}
@@ -38,7 +42,11 @@ const callbackHandlers = {
 		const review = await updateReviewStatus(reviewId, false);
 		if (review) {
 			await ctx.answerCallbackQuery(MESSAGES.reviewRejected);
-			await editMessage(ctx, MESSAGES.reviewsHeader, createBackKeyboard());
+			await sendOrEditMessage(
+				ctx,
+				MESSAGES.reviewsHeader,
+				createBackKeyboard()
+			);
 		} else {
 			await ctx.answerCallbackQuery('Ошибка: отзыв не найден');
 		}
@@ -60,7 +68,7 @@ const handleReviewCallback = async (ctx, action) => {
 				typeof handler.text === 'function'
 					? await handler.text(ctx)
 					: handler.text;
-			await editMessage(ctx, text, handler.keyboard());
+			await sendOrEditMessage(ctx, text, handler.keyboard());
 			if (handler.onExecute) await handler.onExecute(ctx);
 		}
 	} else {

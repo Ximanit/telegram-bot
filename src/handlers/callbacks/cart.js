@@ -6,14 +6,13 @@ const {
 	InlineKeyboard,
 } = require('../../keyboards');
 const { MESSAGES, SERVICES } = require('../../constants');
-const { editMessage, cartUtils } = require('../utils');
+const { sendOrEditMessage, cartUtils } = require('../utils');
 const {
 	addToCart,
 	increaseQuantity,
 	decreaseQuantity,
 } = require('../../services/cart');
 const { addPayment, updatePaymentStatus } = require('../../services/payments');
-
 const { FileAdapter } = require('@grammyjs/storage-file');
 
 const handleCartCallback = async (ctx, action, userName) => {
@@ -27,7 +26,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 		const serviceId = action.replace('decrease_quantity_', '');
 		await decreaseQuantity(ctx, serviceId);
 	} else if (action === 'view_cart') {
-		await editMessage(
+		await sendOrEditMessage(
 			ctx,
 			cartUtils.format(ctx.session.cart),
 			createCartKeyboard(ctx.session.cart)
@@ -38,7 +37,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 			await ctx.answerCallbackQuery(MESSAGES.cartEmptyWarning);
 			return;
 		}
-		await editMessage(
+		await sendOrEditMessage(
 			ctx,
 			MESSAGES.confirmClearCart,
 			new InlineKeyboard()
@@ -48,7 +47,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 	} else if (action === 'confirm_clear_cart') {
 		ctx.session.cart = [];
 		await ctx.answerCallbackQuery(MESSAGES.cartCleared);
-		await editMessage(
+		await sendOrEditMessage(
 			ctx,
 			MESSAGES.cartEmpty,
 			createCartKeyboard(ctx.session.cart)
@@ -67,7 +66,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 		);
 		ctx.session.paymentId = payment.id;
 		ctx.session.awaitingPaymentPhoto = true;
-		await editMessage(
+		await sendOrEditMessage(
 			ctx,
 			`Пожалуйста, оплатите ${total} руб. по следующим реквизитам:\n\n` +
 				`Карта: 1234 5678 9012 3456\n` +
@@ -93,6 +92,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 				paidServices: [],
 				questionCount: 0,
 				paymentId: null,
+				lastMessageId: {},
 			};
 
 			// Обновляем сессию пользователя
@@ -108,24 +108,33 @@ const handleCartCallback = async (ctx, action, userName) => {
 			userSession.awaitingQuestion = questionCount > 0;
 			userSession.cart = [];
 
-			// Сохраняем обновленную сессию пользователя
-			await storage.write(payment.userId.toString(), userSession);
+			// Создаем временный контекст для отправки сообщения пользователю
+			const userCtx = {
+				chat: { id: payment.userId },
+				session: userSession,
+				api: ctx.api,
+				answerCallbackQuery: () => {}, // Пустая функция, так как это не callback
+			};
 
-			// Отправляем сообщение пользователю
-			await ctx.api.sendMessage(
-				payment.userId,
+			// Отправляем сообщение пользователю с редактированием
+			await sendOrEditMessage(
+				userCtx,
 				`${MESSAGES.paymentConfirmed}\n${MESSAGES.paymentTotal.replace(
 					'%total',
 					payment.total
 				)}\nУ вас доступно вопросов: ${questionCount}`,
-				{ reply_markup: createStartKeyboard(questionCount) }
+				createStartKeyboard(questionCount)
 			);
 
+			// Сохраняем обновленную сессию пользователя
+			await storage.write(payment.userId.toString(), userSession);
+
 			// Сообщение администратору
-			await ctx.reply('Платеж подтвержден', {
-				parse_mode: 'Markdown',
-				reply_markup: createBackKeyboard(ctx.session.questionCount),
-			});
+			await sendOrEditMessage(
+				ctx,
+				'Платеж подтвержден',
+				createBackKeyboard(ctx.session.questionCount)
+			);
 			await ctx.answerCallbackQuery('Платеж подтвержден');
 		} else {
 			await ctx.answerCallbackQuery('Ошибка: платеж не найден');
@@ -134,15 +143,44 @@ const handleCartCallback = async (ctx, action, userName) => {
 		const paymentId = parseInt(action.replace('reject_payment_', ''));
 		const payment = await updatePaymentStatus(paymentId, 'rejected');
 		if (payment) {
-			await ctx.api.sendMessage(
-				payment.userId,
+			// Получаем сессию пользователя
+			const storage = new FileAdapter({ dir: './src/data/sessions' });
+			const userSession = (await storage.read(payment.userId.toString())) || {
+				hasPaid: false,
+				awaitingQuestion: false,
+				awaitingReview: false,
+				awaitingPaymentPhoto: false,
+				cart: [],
+				paidServices: [],
+				questionCount: 0,
+				paymentId: null,
+				lastMessageId: {},
+			};
+
+			// Создаем временный контекст для отправки сообщения пользователю
+			const userCtx = {
+				chat: { id: payment.userId },
+				session: userSession,
+				api: ctx.api,
+				answerCallbackQuery: () => {},
+			};
+
+			// Отправляем сообщение пользователю с редактированием
+			await sendOrEditMessage(
+				userCtx,
 				'Ваш платеж был отклонен. Пожалуйста, свяжитесь с администратором.',
-				{ reply_markup: createStartKeyboard(0) }
+				createStartKeyboard(0)
 			);
-			await ctx.reply('Платеж отклонен', {
-				parse_mode: 'Markdown',
-				reply_markup: createBackKeyboard(ctx.session.questionCount),
-			});
+
+			// Сохраняем обновленную сессию пользователя
+			await storage.write(payment.userId.toString(), userSession);
+
+			// Сообщение администратору
+			await sendOrEditMessage(
+				ctx,
+				'Платеж отклонен',
+				createBackKeyboard(ctx.session.questionCount)
+			);
 			await ctx.answerCallbackQuery('Платеж отклонен');
 		} else {
 			await ctx.answerCallbackQuery('Ошибка: платеж не найден');

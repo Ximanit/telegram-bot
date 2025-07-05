@@ -1,6 +1,6 @@
 const { MESSAGES, SERVICES } = require('../constants');
 const { createPriceKeyboard, createCartKeyboard } = require('../keyboards');
-const { editMessage, cartUtils } = require('../handlers/utils');
+const { sendOrEditMessage, cartUtils } = require('../handlers/utils');
 
 const addToCart = async (ctx, serviceId) => {
 	const service = SERVICES.find((s) => s.id === serviceId);
@@ -25,7 +25,7 @@ const addToCart = async (ctx, serviceId) => {
 	await ctx.answerCallbackQuery(
 		MESSAGES.serviceAdded.replace('%name', service.name)
 	);
-	await editMessage(
+	await sendOrEditMessage(
 		ctx,
 		MESSAGES.cartSummary.replace('%count', count).replace('%total', total),
 		createPriceKeyboard()
@@ -41,7 +41,7 @@ const increaseQuantity = async (ctx, serviceId) => {
 	cartItem.quantity += 1;
 	const { count, total } = cartUtils.summary(ctx.session.cart);
 	await ctx.answerCallbackQuery(`Добавлено: ${cartItem.name}`);
-	await editMessage(
+	await sendOrEditMessage(
 		ctx,
 		cartUtils.format(ctx.session.cart),
 		createCartKeyboard(ctx.session.cart)
@@ -60,7 +60,7 @@ const decreaseQuantity = async (ctx, serviceId) => {
 	}
 	const { count, total } = cartUtils.summary(ctx.session.cart);
 	await ctx.answerCallbackQuery(`Удалено: ${cartItem.name}`);
-	await editMessage(
+	await sendOrEditMessage(
 		ctx,
 		ctx.session.cart.length
 			? cartUtils.format(ctx.session.cart)

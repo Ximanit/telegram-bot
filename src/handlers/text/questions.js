@@ -1,9 +1,7 @@
-// src/handlers/text/questions.js
 const {
 	createStartKeyboard,
 	createBackKeyboard,
 	createQuestionActionKeyboard,
-	createUserQuestionActionKeyboard,
 } = require('../../keyboards');
 const { MESSAGES } = require('../../constants');
 const {
@@ -11,7 +9,6 @@ const {
 	addDialogueMessage,
 	getQuestions,
 } = require('../../services/questions');
-const { editMessage } = require('../utils');
 
 const validateQuestion = (text) => {
 	const trimmed = text.trim();
@@ -22,20 +19,22 @@ const handleQuestionText = async (ctx) => {
 	if (ctx.session.awaitingQuestion) {
 		if (ctx.session.questionCount <= 0) {
 			ctx.session.awaitingQuestion = false;
-			return editMessage(
-				ctx,
-				MESSAGES.noQuestionService,
-				createBackKeyboard(ctx.session.questionCount)
-			);
+			const sentMessage = await ctx.reply(MESSAGES.noQuestionService, {
+				parse_mode: 'Markdown',
+				reply_markup: createBackKeyboard(ctx.session.questionCount),
+			});
+			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+			return;
 		}
 
 		const question = validateQuestion(ctx.message.text);
 		if (!question) {
-			return editMessage(
-				ctx,
-				MESSAGES.questionTooShort,
-				createBackKeyboard(ctx.session.questionCount)
-			);
+			const sentMessage = await ctx.reply(MESSAGES.questionTooShort, {
+				parse_mode: 'Markdown',
+				reply_markup: createBackKeyboard(ctx.session.questionCount),
+			});
+			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+			return;
 		}
 
 		const userInfo = ctx.from.username
@@ -60,13 +59,14 @@ const handleQuestionText = async (ctx) => {
 		ctx.session.questionCount -= 1;
 		ctx.session.awaitingQuestion = false;
 		ctx.session.currentQuestionId = newQuestion.id;
-		await ctx.reply(
+		const sentMessage = await ctx.reply(
 			`${MESSAGES.questionSent}\nОсталось вопросов: ${ctx.session.questionCount}`,
 			{
 				parse_mode: 'Markdown',
 				reply_markup: createStartKeyboard(ctx.session.questionCount),
 			}
 		);
+		ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 	} else if (ctx.session.currentQuestionId) {
 		const question = (await getQuestions()).find(
 			(q) =>
@@ -86,23 +86,27 @@ const handleQuestionText = async (ctx) => {
 					reply_markup: createQuestionActionKeyboard(question.id),
 				}
 			);
-			await ctx.reply(MESSAGES.dialogueMessageSent, {
+			const sentMessage = await ctx.reply(MESSAGES.dialogueMessageSent, {
 				parse_mode: 'Markdown',
 			});
+			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 		} else {
 			ctx.session.currentQuestionId = null;
-			await editMessage(
-				ctx,
+			const sentMessage = await ctx.reply(
 				'Диалог по этому вопросу завершен или вопрос не найден.',
-				createStartKeyboard(ctx.session.questionCount)
+				{
+					parse_mode: 'Markdown',
+					reply_markup: createStartKeyboard(ctx.session.questionCount),
+				}
 			);
+			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 		}
 	} else {
-		await editMessage(
-			ctx,
-			MESSAGES.unknownMessage,
-			createStartKeyboard(ctx.session.questionCount)
-		);
+		const sentMessage = await ctx.reply(MESSAGES.unknownMessage, {
+			parse_mode: 'Markdown',
+			reply_markup: createStartKeyboard(ctx.session.questionCount),
+		});
+		ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 	}
 };
 

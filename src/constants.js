@@ -44,6 +44,8 @@ module.exports = {
 		dialogueMessageSent: 'Ваше сообщение отправлено.',
 		questionRejectedWithReason: 'Ваш вопрос был отклонен. Причина: %reason',
 		promptReviewAfterClose: 'Ваш вопрос был закрыт. Хотите оставить отзыв?',
+		promptReviewAfterCloseAdmin:
+			'Ваш вопрос был закрыт администратором.\n Хотите оставить отзыв?',
 	},
 	SERVICES: [{ id: 'single_question', name: 'Ответ на 1 вопрос', price: 2000 }],
 };

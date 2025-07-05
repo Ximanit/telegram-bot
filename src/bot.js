@@ -17,7 +17,7 @@ const {
 	createQuestionActionKeyboard,
 	createUserQuestionActionKeyboard,
 } = require('./keyboards');
-const { handleError, editMessage } = require('./handlers/utils');
+const { handleError, sendOrEditMessage } = require('./handlers/utils');
 const {
 	updateQuestionStatus,
 	addDialogueMessage,
@@ -35,7 +35,7 @@ const bot = new Bot(process.env.API_KEY);
 
 bot.use(
 	session({
-		storage: new FileAdapter({ dir: '/src/data/sessions' }),
+		storage: new FileAdapter({ dir: './src/data/sessions' }),
 		initial: () => ({
 			hasPaid: false,
 			awaitingQuestion: false,
@@ -48,7 +48,8 @@ bot.use(
 			paidServices: [],
 			questionCount: 0,
 			paymentId: null,
-			lastMessageId: null,
+			lastMessageId: {},
+			history: [],
 		}),
 	})
 );
@@ -60,10 +61,11 @@ bot.command('help', handleHelp);
 bot.on('callback_query:data', async (ctx) => {
 	if (ctx.callbackQuery.data === 'ask_question') {
 		ctx.session.awaitingQuestion = true;
-		await ctx.editMessageText('Пожалуйста, задайте ваш вопрос:', {
-			parse_mode: 'Markdown',
-			reply_markup: createBackKeyboard(ctx.session.questionCount),
-		});
+		await sendOrEditMessage(
+			ctx,
+			'Пожалуйста, задайте ваш вопрос:',
+			createBackKeyboard(ctx.session.questionCount)
+		);
 		await ctx.answerCallbackQuery();
 	} else {
 		await handleCallbackQuery(ctx);
@@ -83,23 +85,53 @@ bot.on('message:text', async (ctx) => {
 			rejectReason
 		);
 		if (question) {
-			await ctx.api.sendMessage(
-				question.userId,
+			const storage = new FileAdapter({ dir: './src/data/sessions' });
+			const userSession = (await storage.read(question.userId.toString())) || {
+				hasPaid: false,
+				awaitingQuestion: false,
+				awaitingReview: false,
+				awaitingPaymentPhoto: false,
+				awaitingAnswer: false,
+				awaitingRejectReason: false,
+				currentQuestionId: null,
+				cart: [],
+				paidServices: [],
+				questionCount: 0,
+				paymentId: null,
+				lastMessageId: {},
+			};
+
+			const userCtx = {
+				chat: { id: question.userId },
+				session: userSession,
+				api: ctx.api,
+				answerCallbackQuery: () => {},
+			};
+
+			await sendOrEditMessage(
+				userCtx,
 				MESSAGES.questionRejectedWithReason.replace('%reason', rejectReason),
+				createStartKeyboard(userSession.questionCount)
+			);
+
+			await storage.write(question.userId.toString(), userSession);
+
+			const sentMessage = await ctx.reply(
+				'Вопрос отклонен, причина отправлена пользователю.',
 				{
 					parse_mode: 'Markdown',
-					reply_markup: createStartKeyboard(ctx.session.questionCount),
+					reply_markup: createBackKeyboard(),
 				}
 			);
-			await editMessage(
-				ctx,
-				'Вопрос отклонен, причина отправлена пользователю.',
-				createBackKeyboard()
-			);
+			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 			ctx.session.awaitingRejectReason = false;
 			ctx.session.currentQuestionId = null;
 		} else {
-			await editMessage(ctx, 'Ошибка: вопрос не найден.', createBackKeyboard());
+			const sentMessage = await ctx.reply('Ошибка: вопрос не найден.', {
+				parse_mode: 'Markdown',
+				reply_markup: createBackKeyboard(),
+			});
+			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 		}
 	} else if (
 		ctx.session.awaitingAnswer &&
@@ -109,22 +141,56 @@ bot.on('message:text', async (ctx) => {
 		const answer = ctx.message.text;
 		const question = await addDialogueMessage(questionId, 'admin', answer);
 		if (question) {
-			await ctx.api.sendMessage(
-				question.userId,
+			// Получаем сессию пользователя
+			const storage = new FileAdapter({ dir: './src/data/sessions' });
+			const userSession = (await storage.read(question.userId.toString())) || {
+				hasPaid: false,
+				awaitingQuestion: false,
+				awaitingReview: false,
+				awaitingPaymentPhoto: false,
+				awaitingAnswer: false,
+				awaitingRejectReason: false,
+				currentQuestionId: null,
+				cart: [],
+				paidServices: [],
+				questionCount: 0,
+				paymentId: null,
+				lastMessageId: {},
+			};
+
+			// Создаем временный контекст для отправки сообщения пользователю
+			const userCtx = {
+				chat: { id: question.userId },
+				session: userSession,
+				api: ctx.api,
+				answerCallbackQuery: () => {},
+			};
+
+			// Отправляем сообщение пользователю с редактированием
+			await sendOrEditMessage(
+				userCtx,
 				`Сообщение от администратора по вашему вопросу #${questionId}:\n${answer}`,
+				createUserQuestionActionKeyboard(questionId)
+			);
+
+			// Сохраняем обновленную сессию пользователя
+			await storage.write(question.userId.toString(), userSession);
+
+			const sentMessage = await ctx.reply(
+				'Сообщение отправлено пользователю.',
 				{
 					parse_mode: 'Markdown',
-					reply_markup: createUserQuestionActionKeyboard(questionId),
+					reply_markup: createBackKeyboard(),
 				}
 			);
-			await editMessage(
-				ctx,
-				'Сообщение отправлено пользователю.',
-				createBackKeyboard()
-			);
+			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 			ctx.session.awaitingAnswer = false;
 		} else {
-			await editMessage(ctx, 'Ошибка: вопрос не найден.', createBackKeyboard());
+			const sentMessage = await ctx.reply('Ошибка: вопрос не найден.', {
+				parse_mode: 'Markdown',
+				reply_markup: createBackKeyboard(),
+			});
+			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 		}
 	} else {
 		await handleText(ctx);
@@ -151,9 +217,14 @@ bot.on('message:photo', async (ctx) => {
 		});
 		ctx.session.awaitingPaymentPhoto = false;
 		ctx.session.paymentId = null;
-		await ctx.reply('Фото чека отправлено на проверку администратору.', {
-			reply_markup: createStartKeyboard(ctx.session.questionCount),
-		});
+		const sentMessage = await ctx.reply(
+			'Фото чека отправлено на проверку администратору.',
+			{
+				parse_mode: 'Markdown',
+				reply_markup: createStartKeyboard(ctx.session.questionCount),
+			}
+		);
+		ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 	}
 });
 

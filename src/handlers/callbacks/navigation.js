@@ -4,7 +4,7 @@ const {
 	createBackKeyboard,
 } = require('../../keyboards');
 const { MESSAGES } = require('../../constants');
-const { editMessage, cartUtils } = require('../utils');
+const { sendOrEditMessage, cartUtils } = require('../utils');
 
 const callbackHandlers = {
 	back_to_menu: {
@@ -36,7 +36,11 @@ const handleNavigationCallback = async (ctx, action) => {
 	if (handler) {
 		const text =
 			typeof handler.text === 'function' ? handler.text(ctx) : handler.text;
-		await editMessage(ctx, text, handler.keyboard(ctx.session.questionCount));
+		await sendOrEditMessage(
+			ctx,
+			text,
+			handler.keyboard(ctx.session.questionCount)
+		);
 	} else {
 		await ctx.answerCallbackQuery(`Неизвестное действие: ${action}`);
 	}
