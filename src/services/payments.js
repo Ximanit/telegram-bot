@@ -43,6 +43,7 @@ async function addPayment(userId, username, cart, total) {
 			total,
 			status: 'pending',
 			photo: null,
+			rejectReason: null,
 			timestamp: new Date().toISOString(),
 			questionCount: cart.reduce(
 				(count, item) =>
@@ -59,13 +60,19 @@ async function addPayment(userId, username, cart, total) {
 	}
 }
 
-async function updatePaymentStatus(id, status, photo = null) {
+async function updatePaymentStatus(
+	id,
+	status,
+	photo = null,
+	rejectReason = null
+) {
 	try {
 		const payments = await getPayments();
 		const payment = payments.find((p) => p.id === id);
 		if (payment) {
 			payment.status = status;
 			if (photo) payment.photo = photo;
+			if (rejectReason) payment.rejectReason = rejectReason;
 			await fs.writeFile(PAYMENTS_FILE, JSON.stringify(payments, null, 2));
 			return payment;
 		}

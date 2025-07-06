@@ -89,6 +89,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 				awaitingPaymentPhoto: false,
 				awaitingAnswer: false,
 				awaitingRejectReason: false,
+				awaitingRejectPaymentReason: false,
 				currentQuestionId: null,
 				cart: [],
 				paidServices: [],
@@ -139,46 +140,14 @@ const handleCartCallback = async (ctx, action, userName) => {
 		}
 	} else if (action.startsWith('reject_payment_')) {
 		const paymentId = parseInt(action.replace('reject_payment_', ''));
-		const payment = await updatePaymentStatus(paymentId, 'rejected');
-		if (payment) {
-			const storage = new FileAdapter({ dir: './src/data/sessions' });
-			const userSession = (await storage.read(payment.userId.toString())) || {
-				hasPaid: false,
-				awaitingQuestion: false,
-				awaitingReview: false,
-				awaitingPaymentPhoto: false,
-				cart: [],
-				paidServices: [],
-				questionCount: 0,
-				paymentId: null,
-				lastMessageId: {},
-				history: [],
-			};
-
-			const userCtx = {
-				chat: { id: payment.userId },
-				session: userSession,
-				api: ctx.api,
-				answerCallbackQuery: () => {},
-			};
-
-			await sendOrEditMessage(
-				userCtx,
-				'Ваш платеж был отклонен. Пожалуйста, свяжитесь с администратором.',
-				createStartKeyboard(0)
-			);
-
-			await storage.write(payment.userId.toString(), userSession);
-
-			await sendOrEditMessage(
-				ctx,
-				'Платеж отклонен',
-				createBackKeyboard(ctx.session.questionCount)
-			);
-			await ctx.answerCallbackQuery('Платеж отклонен');
-		} else {
-			await ctx.answerCallbackQuery('Ошибка: платеж не найден');
-		}
+		ctx.session.awaitingRejectPaymentReason = true;
+		ctx.session.paymentId = paymentId;
+		await sendOrEditMessage(
+			ctx,
+			MESSAGES.rejectPaymentReasonPrompt,
+			createBackKeyboard()
+		);
+		await ctx.answerCallbackQuery();
 	}
 };
 

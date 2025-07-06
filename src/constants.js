@@ -46,6 +46,9 @@ module.exports = {
 		promptReviewAfterClose: 'Ваш вопрос был закрыт. Хотите оставить отзыв?',
 		promptReviewAfterCloseAdmin:
 			'Ваш вопрос был закрыт администратором.\n Хотите оставить отзыв?',
+		paymentRejectedWithReason: 'Ваш платеж был отклонен по причине: \n%reason',
+		rejectPaymentReasonPrompt:
+			'Пожалуйста, укажите причину отклонения платежа:',
 	},
 	SERVICES: [{ id: 'single_question', name: 'Ответ на 1 вопрос', price: 2000 }],
 };

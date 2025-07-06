@@ -44,6 +44,7 @@ bot.use(
 			awaitingPaymentPhoto: false,
 			awaitingAnswer: false,
 			awaitingRejectReason: false,
+			awaitingRejectPaymentReason: false,
 			currentQuestionId: null,
 			cart: [],
 			paidServices: [],
@@ -75,7 +76,9 @@ bot.on('callback_query:data', async (ctx) => {
 		ctx.session.awaitingPaymentPhoto = false;
 		ctx.session.awaitingAnswer = false;
 		ctx.session.awaitingRejectReason = false;
+		ctx.session.awaitingRejectPaymentReason = false;
 		ctx.session.currentQuestionId = null;
+		ctx.session.paymentId = null;
 		ctx.session.lastAction = null;
 
 		// Отладка: логируем историю перед обработкой
@@ -158,6 +161,7 @@ bot.on('message:text', async (ctx) => {
 				awaitingPaymentPhoto: false,
 				awaitingAnswer: false,
 				awaitingRejectReason: false,
+				awaitingRejectPaymentReason: false,
 				currentQuestionId: null,
 				cart: [],
 				paidServices: [],
@@ -203,6 +207,72 @@ bot.on('message:text', async (ctx) => {
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 		}
 	} else if (
+		ctx.session.awaitingRejectPaymentReason &&
+		ctx.from.id.toString() === process.env.ADMIN_ID
+	) {
+		const paymentId = ctx.session.paymentId;
+		const rejectReason = ctx.message.text;
+		const payment = await updatePaymentStatus(
+			paymentId,
+			'rejected',
+			null,
+			rejectReason
+		);
+		if (payment) {
+			const storage = new FileAdapter({ dir: './src/data/sessions' });
+			const userSession = (await storage.read(payment.userId.toString())) || {
+				hasPaid: false,
+				awaitingQuestion: false,
+				awaitingReview: false,
+				awaitingPaymentPhoto: false,
+				awaitingAnswer: false,
+				awaitingRejectReason: false,
+				awaitingRejectPaymentReason: false,
+				currentQuestionId: null,
+				cart: [],
+				paidServices: [],
+				questionCount: 0,
+				paymentId: null,
+				lastMessageId: {},
+				history: [],
+			};
+
+			const userCtx = {
+				chat: { id: payment.userId },
+				session: userSession,
+				api: ctx.api,
+				answerCallbackQuery: () => {},
+			};
+
+			await sendOrEditMessage(
+				userCtx,
+				`${MESSAGES.paymentRejectedWithReason.replace(
+					'%reason',
+					rejectReason
+				)}`,
+				createStartKeyboard(0)
+			);
+
+			await storage.write(payment.userId.toString(), userSession);
+
+			const sentMessage = await ctx.reply(
+				'Платеж отклонен, причина отправлена пользователю.',
+				{
+					parse_mode: 'Markdown',
+					reply_markup: createBackKeyboard(),
+				}
+			);
+			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+			ctx.session.awaitingRejectPaymentReason = false;
+			ctx.session.paymentId = null;
+		} else {
+			const sentMessage = await ctx.reply('Ошибка: платеж не найден.', {
+				parse_mode: 'Markdown',
+				reply_markup: createBackKeyboard(),
+			});
+			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+		}
+	} else if (
 		ctx.session.awaitingAnswer &&
 		ctx.from.id.toString() === process.env.ADMIN_ID
 	) {
@@ -218,6 +288,7 @@ bot.on('message:text', async (ctx) => {
 				awaitingPaymentPhoto: false,
 				awaitingAnswer: false,
 				awaitingRejectReason: false,
+				awaitingRejectPaymentReason: false,
 				currentQuestionId: null,
 				cart: [],
 				paidServices: [],
