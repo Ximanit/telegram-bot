@@ -49,6 +49,12 @@ module.exports = {
 		paymentRejectedWithReason: 'Ваш платеж был отклонен по причине: \n%reason',
 		rejectPaymentReasonPrompt:
 			'Пожалуйста, укажите причину отклонения платежа:',
+		supportQuestionSent:
+			'Ваш вопрос техподдержки отправлен. Ожидайте ответа администратора.',
+		questionTooShort:
+			'Вопрос слишком короткий. Пожалуйста, опишите проблему подробнее (минимум 5 символов).',
+		dialogueMessageSent:
+			'Ваше сообщение отправлено. Ожидайте ответа администратора.',
 	},
 	SERVICES: [{ id: 'single_question', name: 'Ответ на 1 вопрос', price: 2000 }],
 };

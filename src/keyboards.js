@@ -75,6 +75,18 @@ const createReviewPromptKeyboard = () => {
 		.text('Назад', 'back_to_menu');
 };
 
+const createSupportQuestionActionKeyboard = (questionId) => {
+	return new InlineKeyboard()
+		.text('Ответить', `answer_support_question_${questionId}`)
+		.text('Закрыть', `close_support_question_${questionId}`);
+};
+
+const createUserSupportQuestionActionKeyboard = (questionId) => {
+	return new InlineKeyboard()
+		.text('Уточнить', `clarify_support_question_${questionId}`)
+		.text('Закрыть', `close_support_question_${questionId}`);
+};
+
 module.exports = {
 	createStartKeyboard,
 	createPriceKeyboard,
@@ -85,4 +97,6 @@ module.exports = {
 	createQuestionActionKeyboard,
 	createUserQuestionActionKeyboard,
 	createReviewPromptKeyboard,
+	createSupportQuestionActionKeyboard,
+	createUserSupportQuestionActionKeyboard,
 };

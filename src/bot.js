@@ -14,16 +14,17 @@ const {
 	createPaymentConfirmationKeyboard,
 	createStartKeyboard,
 	createBackKeyboard,
-	createQuestionActionKeyboard,
 	createUserQuestionActionKeyboard,
 	createReviewPromptKeyboard,
+	createUserSupportQuestionActionKeyboard,
 } = require('./keyboards');
 const { handleError, sendOrEditMessage } = require('./handlers/utils');
 const {
 	updateQuestionStatus,
 	addDialogueMessage,
-	getQuestions,
 } = require('./services/questions');
+
+const { addSupportDialogueMessage } = require('./services/support');
 
 const { MESSAGES } = require('./constants');
 
@@ -45,7 +46,10 @@ bot.use(
 			awaitingAnswer: false,
 			awaitingRejectReason: false,
 			awaitingRejectPaymentReason: false,
+			awaitingSupportQuestion: false,
+			awaitingSupportAnswer: false,
 			currentQuestionId: null,
+			currentSupportQuestionId: null,
 			cart: [],
 			paidServices: [],
 			questionCount: 0,
@@ -327,6 +331,74 @@ bot.on('message:text', async (ctx) => {
 				parse_mode: 'Markdown',
 				reply_markup: createBackKeyboard(),
 			});
+			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+		}
+	} else if (
+		ctx.session.awaitingSupportAnswer &&
+		ctx.from.id.toString() === process.env.ADMIN_ID
+	) {
+		const questionId = ctx.session.currentSupportQuestionId;
+		const answer = ctx.message.text;
+		const question = await addSupportDialogueMessage(
+			questionId,
+			'admin',
+			answer
+		);
+		if (question) {
+			const storage = new FileAdapter({ dir: './src/data/sessions' });
+			const userSession = (await storage.read(question.userId.toString())) || {
+				hasPaid: false,
+				awaitingQuestion: false,
+				awaitingReview: false,
+				awaitingPaymentPhoto: false,
+				awaitingAnswer: false,
+				awaitingRejectReason: false,
+				awaitingRejectPaymentReason: false,
+				awaitingSupportQuestion: false,
+				awaitingSupportAnswer: false,
+				currentQuestionId: null,
+				currentSupportQuestionId: null,
+				cart: [],
+				paidServices: [],
+				questionCount: 0,
+				paymentId: null,
+				lastMessageId: {},
+				history: [],
+			};
+
+			const userCtx = {
+				chat: { id: question.userId },
+				session: userSession,
+				api: ctx.api,
+				answerCallbackQuery: () => {},
+			};
+
+			await sendOrEditMessage(
+				userCtx,
+				`Сообщение от администратора по вашему вопросу техподдержки #${questionId}:\n${answer}`,
+				createUserSupportQuestionActionKeyboard(questionId)
+			);
+
+			await storage.write(question.userId.toString(), userSession);
+
+			const sentMessage = await ctx.reply(
+				'Сообщение отправлено пользователю.',
+				{
+					parse_mode: 'Markdown',
+					reply_markup: createBackKeyboard(),
+				}
+			);
+			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+			ctx.session.awaitingSupportAnswer = false;
+			ctx.session.currentSupportQuestionId = null;
+		} else {
+			const sentMessage = await ctx.reply(
+				'Ошибка: вопрос техподдержки не найден.',
+				{
+					parse_mode: 'Markdown',
+					reply_markup: createBackKeyboard(),
+				}
+			);
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 		}
 	} else {

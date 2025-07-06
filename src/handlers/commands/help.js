@@ -1,12 +1,15 @@
 const { createBackKeyboard } = require('../../keyboards');
 const { MESSAGES } = require('../../constants');
+const { sendOrEditMessage } = require('../utils');
 
 const handleHelp = async (ctx) => {
-	const sentMessage = await ctx.reply(MESSAGES.help, {
-		parse_mode: 'Markdown',
-		reply_markup: createBackKeyboard(),
-	});
-	ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+	ctx.session.awaitingSupportQuestion = true;
+	await sendOrEditMessage(
+		ctx,
+		'Пожалуйста, опишите ваш вопрос для технической поддержки:',
+		createBackKeyboard(),
+		1
+	);
 };
 
 module.exports = { handleHelp };
