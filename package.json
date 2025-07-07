@@ -5,16 +5,19 @@
 	"main": "index.js",
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1",
-		"dev": "node index.js --ignore src/data/reviews.json --ignore src/data/payments.json"
+		"dev": "node index.js"
 	},
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
 	"dependencies": {
 		"@grammyjs/storage-file": "^2.5.1",
+		"@grammyjs/storage-mongodb": "^2.5.1",
 		"axios": "^1.10.0",
 		"dotenv": "^16.5.0",
-		"grammy": "^1.36.3"
+		"grammy": "^1.36.3",
+		"mongodb": "^6.17.0",
+		"winston": "^3.17.0"
 	},
 	"devDependencies": {
 		"nodemon": "^3.1.10"

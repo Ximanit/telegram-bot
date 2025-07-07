@@ -1,72 +1,65 @@
-const fs = require('fs').promises;
-const path = require('path');
-
-const REVIEWS_FILE = path.join(__dirname, '../data/reviews.json');
-
-async function initReviewsFile() {
-	try {
-		await fs.access(REVIEWS_FILE);
-		console.log('Файл reviews.json существует');
-	} catch {
-		console.log('Создаем новый файл reviews.json');
-		await fs.writeFile(REVIEWS_FILE, JSON.stringify([], null, 2));
-	}
-}
+const { connectDB } = require('../db');
+const logger = require('../logger');
 
 async function getReviews() {
 	try {
-		await initReviewsFile();
-		const data = await fs.readFile(REVIEWS_FILE, 'utf8');
-		const reviews = JSON.parse(data);
-		console.log('Отзывы из файла:', reviews);
-		if (!Array.isArray(reviews)) {
-			console.error(
-				'reviews.json содержит некорректные данные, ожидаем массив'
-			);
-			return [];
-		}
+		const db = await connectDB();
+		const reviews = await db.collection('reviews').find({}).toArray();
+		logger.info(`Fetched ${reviews.length} reviews from MongoDB`);
 		return reviews;
 	} catch (error) {
-		console.error('Ошибка чтения reviews.json:', error);
+		logger.error('Ошибка чтения отзывов из MongoDB:', {
+			error: error.message,
+			stack: error.stack,
+		});
 		return [];
 	}
 }
 
 async function addReview(userId, username, text) {
 	try {
-		const reviews = await getReviews();
+		const db = await connectDB();
 		const newReview = {
-			id: reviews.length + 1,
+			id: (await db.collection('reviews').countDocuments()) + 1,
 			userId,
 			username: username || `ID ${userId}`,
 			text,
 			approved: false,
 			timestamp: new Date().toISOString(),
 		};
-		reviews.push(newReview);
-		await fs.writeFile(REVIEWS_FILE, JSON.stringify(reviews, null, 2));
-		console.log('Добавлен отзыв:', newReview);
+		await db.collection('reviews').insertOne(newReview);
+		logger.info(`Added review by user ${userId}: ${text}`);
 		return newReview;
 	} catch (error) {
-		console.error('Ошибка добавления отзыва:', error);
+		logger.error('Ошибка добавления отзыва в MongoDB:', {
+			error: error.message,
+			stack: error.stack,
+		});
 		throw error;
 	}
 }
 
 async function updateReviewStatus(id, approved) {
 	try {
-		const reviews = await getReviews();
-		const review = reviews.find((r) => r.id === id);
-		if (review) {
-			review.approved = approved;
-			await fs.writeFile(REVIEWS_FILE, JSON.stringify(reviews, null, 2));
-			console.log(`Отзыв ${id} обновлен, approved: ${approved}`);
-			return review;
+		const db = await connectDB();
+		const result = await db
+			.collection('reviews')
+			.findOneAndUpdate(
+				{ id },
+				{ $set: { approved } },
+				{ returnDocument: 'after' }
+			);
+		if (result.value) {
+			logger.info(`Review ${id} updated, approved: ${approved}`);
+			return result.value;
 		}
-		console.warn(`Отзыв с id ${id} не найден`);
+		logger.warn(`Review with id ${id} not found`);
 		return null;
 	} catch (error) {
-		console.error('Ошибка обновления статуса отзыва:', error);
+		logger.error('Ошибка обновления статуса отзыва в MongoDB:', {
+			error: error.message,
+			stack: error.stack,
+		});
 		throw error;
 	}
 }

@@ -13,7 +13,6 @@ const {
 	decreaseQuantity,
 } = require('../../services/cart');
 const { addPayment, updatePaymentStatus } = require('../../services/payments');
-const { FileAdapter } = require('@grammyjs/storage-file');
 
 const handleCartCallback = async (ctx, action, userName) => {
 	if (action.startsWith('add_to_cart_')) {
@@ -81,39 +80,21 @@ const handleCartCallback = async (ctx, action, userName) => {
 		if (payment) {
 			const questionCount = payment.questionCount;
 
-			const storage = new FileAdapter({ dir: './src/data/sessions' });
-			const userSession = (await storage.read(payment.userId.toString())) || {
-				hasPaid: false,
-				awaitingQuestion: false,
-				awaitingReview: false,
-				awaitingPaymentPhoto: false,
-				awaitingAnswer: false,
-				awaitingRejectReason: false,
-				awaitingRejectPaymentReason: false,
-				currentQuestionId: null,
-				cart: [],
-				paidServices: [],
-				questionCount: 0,
-				paymentId: null,
-				lastMessageId: {},
-				history: [],
-			};
-
-			userSession.paidServices = payment.cart.flatMap((item) =>
+			ctx.session.paidServices = payment.cart.flatMap((item) =>
 				Array(item.quantity).fill({
 					name: item.name,
 					price: item.price,
 					id: item.id,
 				})
 			);
-			userSession.hasPaid = true;
-			userSession.questionCount = questionCount;
-			userSession.awaitingQuestion = questionCount > 0;
-			userSession.cart = [];
+			ctx.session.hasPaid = true;
+			ctx.session.questionCount = questionCount;
+			ctx.session.awaitingQuestion = questionCount > 0;
+			ctx.session.cart = [];
 
 			const userCtx = {
 				chat: { id: payment.userId },
-				session: userSession,
+				session: ctx.session,
 				api: ctx.api,
 				answerCallbackQuery: () => {},
 			};
@@ -126,8 +107,6 @@ const handleCartCallback = async (ctx, action, userName) => {
 				)}\nУ вас доступно вопросов: ${questionCount}`,
 				createStartKeyboard(questionCount)
 			);
-
-			await storage.write(payment.userId.toString(), userSession);
 
 			await sendOrEditMessage(
 				ctx,

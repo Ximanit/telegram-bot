@@ -1,32 +1,26 @@
-const fs = require('fs').promises;
-const path = require('path');
-
-const QUESTIONS_FILE = path.join(__dirname, '../data/questions.json');
-
-async function initQuestionsFile() {
-	try {
-		await fs.access(QUESTIONS_FILE);
-	} catch {
-		await fs.writeFile(QUESTIONS_FILE, JSON.stringify([], null, 2));
-	}
-}
+const { connectDB } = require('../db');
+const logger = require('../logger');
 
 async function getQuestions() {
 	try {
-		await initQuestionsFile();
-		const data = await fs.readFile(QUESTIONS_FILE, 'utf8');
-		return JSON.parse(data);
+		const db = await connectDB();
+		const questions = await db.collection('questions').find({}).toArray();
+		logger.info(`Fetched ${questions.length} questions from MongoDB`);
+		return questions;
 	} catch (error) {
-		console.error('Ошибка чтения questions.json:', error);
+		logger.error('Ошибка чтения вопросов из MongoDB:', {
+			error: error.message,
+			stack: error.stack,
+		});
 		return [];
 	}
 }
 
 async function addQuestion(userId, username, text) {
 	try {
-		const questions = await getQuestions();
+		const db = await connectDB();
 		const newQuestion = {
-			id: questions.length + 1,
+			id: (await db.collection('questions').countDocuments()) + 1,
 			userId,
 			username: username || `ID ${userId}`,
 			text,
@@ -35,48 +29,74 @@ async function addQuestion(userId, username, text) {
 			dialogue: [],
 			timestamp: new Date().toISOString(),
 		};
-		questions.push(newQuestion);
-		await fs.writeFile(QUESTIONS_FILE, JSON.stringify(questions, null, 2));
+		await db.collection('questions').insertOne(newQuestion);
+		logger.info(`Added question by user ${userId}: ${text}`);
 		return newQuestion;
 	} catch (error) {
-		console.error('Ошибка добавления вопроса:', error);
+		logger.error('Ошибка добавления вопроса в MongoDB:', {
+			error: error.message,
+			stack: error.stack,
+		});
 		throw error;
 	}
 }
 
 async function updateQuestionStatus(id, status, rejectReason = null) {
 	try {
-		const questions = await getQuestions();
-		const question = questions.find((q) => q.id === id);
-		if (question) {
-			question.status = status;
-			if (rejectReason) question.rejectReason = rejectReason;
-			await fs.writeFile(QUESTIONS_FILE, JSON.stringify(questions, null, 2));
-			return question;
+		const db = await connectDB();
+		const updateFields = { status };
+		if (rejectReason) updateFields.rejectReason = rejectReason;
+		const result = await db
+			.collection('questions')
+			.findOneAndUpdate(
+				{ id },
+				{ $set: updateFields },
+				{ returnDocument: 'after' }
+			);
+		if (result.value) {
+			logger.info(`Question ${id} updated, status: ${status}`);
+			return result.value;
 		}
+		logger.warn(`Question with id ${id} not found`);
 		return null;
 	} catch (error) {
-		console.error('Ошибка обновления статуса вопроса:', error);
+		logger.error('Ошибка обновления статуса вопроса в MongoDB:', {
+			error: error.message,
+			stack: error.stack,
+		});
 		throw error;
 	}
 }
 
 async function addDialogueMessage(questionId, sender, message) {
 	try {
-		const questions = await getQuestions();
-		const question = questions.find((q) => q.id === questionId);
-		if (question) {
-			question.dialogue.push({
-				sender: sender === 'admin' ? 'Администратор' : 'Пользователь',
-				message,
-				timestamp: new Date().toISOString(),
-			});
-			await fs.writeFile(QUESTIONS_FILE, JSON.stringify(questions, null, 2));
-			return question;
+		const db = await connectDB();
+		const result = await db.collection('questions').findOneAndUpdate(
+			{ id: questionId },
+			{
+				$push: {
+					dialogue: {
+						sender: sender === 'admin' ? 'Администратор' : 'Пользователь',
+						message,
+						timestamp: new Date().toISOString(),
+					},
+				},
+			},
+			{ returnDocument: 'after' }
+		);
+		if (result.value) {
+			logger.info(
+				`Added dialogue message to question ${questionId} by ${sender}`
+			);
+			return result.value;
 		}
+		logger.warn(`Question with id ${questionId} not found`);
 		return null;
 	} catch (error) {
-		console.error('Ошибка добавления сообщения в диалог:', error);
+		logger.error('Ошибка добавления сообщения в диалог:', {
+			error: error.message,
+			stack: error.stack,
+		});
 		throw error;
 	}
 }

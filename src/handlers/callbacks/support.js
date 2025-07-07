@@ -9,7 +9,6 @@ const {
 } = require('../../services/support');
 const { MESSAGES } = require('../../constants');
 const { sendOrEditMessage } = require('../utils');
-const { FileAdapter } = require('@grammyjs/storage-file');
 
 const handleSupportQuestionCallback = async (ctx, action) => {
 	if (action.startsWith('answer_support_question_')) {
@@ -39,30 +38,9 @@ const handleSupportQuestionCallback = async (ctx, action) => {
 					? 'Администратор'
 					: 'Пользователь';
 
-			const storage = new FileAdapter({ dir: './src/data/sessions' });
-			const userSession = (await storage.read(question.userId.toString())) || {
-				hasPaid: false,
-				awaitingQuestion: false,
-				awaitingReview: false,
-				awaitingPaymentPhoto: false,
-				awaitingAnswer: false,
-				awaitingRejectReason: false,
-				awaitingRejectPaymentReason: false,
-				awaitingSupportQuestion: false,
-				awaitingSupportAnswer: false,
-				currentQuestionId: null,
-				currentSupportQuestionId: null,
-				cart: [],
-				paidServices: [],
-				questionCount: 0,
-				paymentId: null,
-				lastMessageId: {},
-				history: [],
-			};
-
 			const userCtx = {
 				chat: { id: question.userId },
-				session: userSession,
+				session: ctx.session,
 				api: ctx.api,
 				answerCallbackQuery: () => {},
 			};
@@ -75,10 +53,9 @@ const handleSupportQuestionCallback = async (ctx, action) => {
 			await sendOrEditMessage(
 				userCtx,
 				messageText,
-				createStartKeyboard(userSession.questionCount)
+				createStartKeyboard(ctx.session.questionCount)
 			);
 
-			await storage.write(question.userId.toString(), userSession);
 			ctx.session.currentSupportQuestionId = null;
 			await ctx.answerCallbackQuery('Вопрос техподдержки закрыт');
 		} else {

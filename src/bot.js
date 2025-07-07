@@ -1,6 +1,8 @@
-const { Bot, session } = require('grammy');
-const { FileAdapter } = require('@grammyjs/storage-file');
+const { Bot, session, Composer } = require('grammy');
+const { MongoDBAdapter } = require('@grammyjs/storage-mongodb');
+const { connectDB } = require('./db');
 require('dotenv').config();
+const logger = require('./logger');
 const { handleStart } = require('./handlers/commands/start');
 const { handleMeow } = require('./handlers/commands/meow');
 const { handleHelp } = require('./handlers/commands/help');
@@ -23,48 +25,69 @@ const {
 	updateQuestionStatus,
 	addDialogueMessage,
 } = require('./services/questions');
-
 const { addSupportDialogueMessage } = require('./services/support');
-
 const { MESSAGES } = require('./constants');
 
 if (!process.env.API_KEY || !process.env.ADMIN_ID) {
-	console.error('Ошибка: API_KEY или ADMIN_ID не указаны в .env');
+	logger.error('API_KEY или ADMIN_ID не указаны в .env');
 	process.exit(1);
 }
 
 const bot = new Bot(process.env.API_KEY);
+const composer = new Composer();
 
-bot.use(
-	session({
-		storage: new FileAdapter({ dir: './src/data/sessions' }),
-		initial: () => ({
-			hasPaid: false,
-			awaitingQuestion: false,
-			awaitingReview: false,
-			awaitingPaymentPhoto: false,
-			awaitingAnswer: false,
-			awaitingRejectReason: false,
-			awaitingRejectPaymentReason: false,
-			awaitingSupportQuestion: false,
-			awaitingSupportAnswer: false,
-			currentQuestionId: null,
-			currentSupportQuestionId: null,
-			cart: [],
-			paidServices: [],
-			questionCount: 0,
-			paymentId: null,
-			lastMessageId: {},
-			history: [],
-		}),
-	})
-);
+// Инициализация MongoDB и сессий
+(async () => {
+	try {
+		const db = await connectDB();
+		composer.use(
+			session({
+				storage: new MongoDBAdapter({
+					collection: db.collection('sessions'),
+				}),
+				initial: () => ({
+					hasPaid: false,
+					awaitingQuestion: false,
+					awaitingReview: false,
+					awaitingPaymentPhoto: false,
+					awaitingAnswer: false,
+					awaitingRejectReason: false,
+					awaitingRejectPaymentReason: false,
+					awaitingSupportQuestion: false,
+					awaitingSupportAnswer: false,
+					currentQuestionId: null,
+					currentSupportQuestionId: null,
+					cart: [],
+					paidServices: [],
+					questionCount: 0,
+					paymentId: null,
+					lastMessageId: {},
+					history: [],
+				}),
+			})
+		);
+		logger.info('Сессии настроены с MongoDB');
+	} catch (error) {
+		logger.error('Ошибка при инициализации MongoDB:', {
+			error: error.message,
+			stack: error.stack,
+		});
+		process.exit(1);
+	}
+})();
 
+// Регистрируем composer на боте
+bot.use(composer);
+
+// Регистрация обработчиков
 bot.command('start', handleStart);
 bot.command('meow', handleMeow);
 bot.command('help', handleHelp);
 
 bot.on('callback_query:data', async (ctx) => {
+	logger.info(
+		`Callback query received: ${ctx.callbackQuery.data} from user ${ctx.from.id}`
+	);
 	if (ctx.callbackQuery.data === 'ask_question') {
 		ctx.session.awaitingQuestion = true;
 		await sendOrEditMessage(
@@ -74,7 +97,6 @@ bot.on('callback_query:data', async (ctx) => {
 		);
 		await ctx.answerCallbackQuery();
 	} else if (ctx.callbackQuery.data === 'back') {
-		// Обработка кнопки "Назад"
 		ctx.session.awaitingQuestion = false;
 		ctx.session.awaitingReview = false;
 		ctx.session.awaitingPaymentPhoto = false;
@@ -85,14 +107,13 @@ bot.on('callback_query:data', async (ctx) => {
 		ctx.session.paymentId = null;
 		ctx.session.lastAction = null;
 
-		// Отладка: логируем историю перед обработкой
-		console.log(
-			`[back] Chat ${ctx.chat.id}, History before:`,
-			JSON.stringify(ctx.session.history)
+		logger.info(
+			`Back button pressed by user ${ctx.chat.id}, History: ${JSON.stringify(
+				ctx.session.history
+			)}`
 		);
 
 		if (ctx.session.history.length > 1) {
-			// Удаляем текущее состояние, если оно есть
 			ctx.session.history.pop();
 			const previousState = ctx.session.history.pop();
 			if (previousState) {
@@ -101,13 +122,13 @@ bot.on('callback_query:data', async (ctx) => {
 					previousState.text,
 					previousState.keyboard,
 					false,
-					true // Пропускаем добавление в историю
+					true
 				);
-				console.log(`[back] Восстановлено состояние: ${previousState.text}`);
+				logger.info(
+					`Restored state for user ${ctx.chat.id}: ${previousState.text}`
+				);
 			} else {
-				console.warn(
-					`[back] Пустое состояние в истории для chat ${ctx.chat.id}`
-				);
+				logger.warn(`Empty history state for chat ${ctx.chat.id}`);
 				const userName = ctx.from?.first_name || 'Друг';
 				await sendOrEditMessage(
 					ctx,
@@ -118,8 +139,7 @@ bot.on('callback_query:data', async (ctx) => {
 				);
 			}
 		} else {
-			// Если в истории одно или ноль состояний, возвращаемся в начальное меню
-			ctx.session.history = []; // Очищаем историю
+			ctx.session.history = [];
 			const userName = ctx.from?.first_name || 'Друг';
 			await sendOrEditMessage(
 				ctx,
@@ -128,16 +148,10 @@ bot.on('callback_query:data', async (ctx) => {
 				false,
 				true
 			);
-			console.log(
-				`[back] История пуста или содержит одно состояние, возвращаемся в начальное меню`
+			logger.info(
+				`History empty or single state, returned to start menu for user ${ctx.chat.id}`
 			);
 		}
-
-		// Отладка: логируем историю после обработки
-		console.log(
-			`[back] Chat ${ctx.chat.id}, History after:`,
-			JSON.stringify(ctx.session.history)
-		);
 		await ctx.answerCallbackQuery();
 	} else {
 		await handleCallbackQuery(ctx);
@@ -145,6 +159,9 @@ bot.on('callback_query:data', async (ctx) => {
 });
 
 bot.on('message:text', async (ctx) => {
+	logger.info(
+		`Text message received from user ${ctx.from.id}: ${ctx.message.text}`
+	);
 	if (
 		ctx.session.awaitingRejectReason &&
 		ctx.from.id.toString() === process.env.ADMIN_ID
@@ -157,27 +174,9 @@ bot.on('message:text', async (ctx) => {
 			rejectReason
 		);
 		if (question) {
-			const storage = new FileAdapter({ dir: './src/data/sessions' });
-			const userSession = (await storage.read(question.userId.toString())) || {
-				hasPaid: false,
-				awaitingQuestion: false,
-				awaitingReview: false,
-				awaitingPaymentPhoto: false,
-				awaitingAnswer: false,
-				awaitingRejectReason: false,
-				awaitingRejectPaymentReason: false,
-				currentQuestionId: null,
-				cart: [],
-				paidServices: [],
-				questionCount: 0,
-				paymentId: null,
-				lastMessageId: {},
-				history: [],
-			};
-
 			const userCtx = {
 				chat: { id: question.userId },
-				session: userSession,
+				session: ctx.session,
 				api: ctx.api,
 				answerCallbackQuery: () => {},
 			};
@@ -191,8 +190,6 @@ bot.on('message:text', async (ctx) => {
 				createReviewPromptKeyboard()
 			);
 
-			await storage.write(question.userId.toString(), userSession);
-
 			const sentMessage = await ctx.reply(
 				'Вопрос отклонен, причина отправлена пользователю.',
 				{
@@ -203,12 +200,16 @@ bot.on('message:text', async (ctx) => {
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 			ctx.session.awaitingRejectReason = false;
 			ctx.session.currentQuestionId = null;
+			logger.info(
+				`Question ${questionId} rejected by admin for user ${question.userId}`
+			);
 		} else {
 			const sentMessage = await ctx.reply('Ошибка: вопрос не найден.', {
 				parse_mode: 'Markdown',
 				reply_markup: createBackKeyboard(),
 			});
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+			logger.error(`Question ${questionId} not found for rejection`);
 		}
 	} else if (
 		ctx.session.awaitingRejectPaymentReason &&
@@ -223,27 +224,9 @@ bot.on('message:text', async (ctx) => {
 			rejectReason
 		);
 		if (payment) {
-			const storage = new FileAdapter({ dir: './src/data/sessions' });
-			const userSession = (await storage.read(payment.userId.toString())) || {
-				hasPaid: false,
-				awaitingQuestion: false,
-				awaitingReview: false,
-				awaitingPaymentPhoto: false,
-				awaitingAnswer: false,
-				awaitingRejectReason: false,
-				awaitingRejectPaymentReason: false,
-				currentQuestionId: null,
-				cart: [],
-				paidServices: [],
-				questionCount: 0,
-				paymentId: null,
-				lastMessageId: {},
-				history: [],
-			};
-
 			const userCtx = {
 				chat: { id: payment.userId },
-				session: userSession,
+				session: ctx.session,
 				api: ctx.api,
 				answerCallbackQuery: () => {},
 			};
@@ -257,8 +240,6 @@ bot.on('message:text', async (ctx) => {
 				createStartKeyboard(0)
 			);
 
-			await storage.write(payment.userId.toString(), userSession);
-
 			const sentMessage = await ctx.reply(
 				'Платеж отклонен, причина отправлена пользователю.',
 				{
@@ -269,12 +250,16 @@ bot.on('message:text', async (ctx) => {
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 			ctx.session.awaitingRejectPaymentReason = false;
 			ctx.session.paymentId = null;
+			logger.info(
+				`Payment ${paymentId} rejected by admin for user ${payment.userId}`
+			);
 		} else {
 			const sentMessage = await ctx.reply('Ошибка: платеж не найден.', {
 				parse_mode: 'Markdown',
 				reply_markup: createBackKeyboard(),
 			});
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+			logger.error(`Payment ${paymentId} not found for rejection`);
 		}
 	} else if (
 		ctx.session.awaitingAnswer &&
@@ -284,27 +269,9 @@ bot.on('message:text', async (ctx) => {
 		const answer = ctx.message.text;
 		const question = await addDialogueMessage(questionId, 'admin', answer);
 		if (question) {
-			const storage = new FileAdapter({ dir: './src/data/sessions' });
-			const userSession = (await storage.read(question.userId.toString())) || {
-				hasPaid: false,
-				awaitingQuestion: false,
-				awaitingReview: false,
-				awaitingPaymentPhoto: false,
-				awaitingAnswer: false,
-				awaitingRejectReason: false,
-				awaitingRejectPaymentReason: false,
-				currentQuestionId: null,
-				cart: [],
-				paidServices: [],
-				questionCount: 0,
-				paymentId: null,
-				lastMessageId: {},
-				history: [],
-			};
-
 			const userCtx = {
 				chat: { id: question.userId },
-				session: userSession,
+				session: ctx.session,
 				api: ctx.api,
 				answerCallbackQuery: () => {},
 			};
@@ -315,8 +282,6 @@ bot.on('message:text', async (ctx) => {
 				createUserQuestionActionKeyboard(questionId)
 			);
 
-			await storage.write(question.userId.toString(), userSession);
-
 			const sentMessage = await ctx.reply(
 				'Сообщение отправлено пользователю.',
 				{
@@ -326,12 +291,16 @@ bot.on('message:text', async (ctx) => {
 			);
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 			ctx.session.awaitingAnswer = false;
+			logger.info(
+				`Admin answered question ${questionId} for user ${question.userId}`
+			);
 		} else {
 			const sentMessage = await ctx.reply('Ошибка: вопрос не найден.', {
 				parse_mode: 'Markdown',
 				reply_markup: createBackKeyboard(),
 			});
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+			logger.error(`Question ${questionId} not found for answering`);
 		}
 	} else if (
 		ctx.session.awaitingSupportAnswer &&
@@ -345,30 +314,9 @@ bot.on('message:text', async (ctx) => {
 			answer
 		);
 		if (question) {
-			const storage = new FileAdapter({ dir: './src/data/sessions' });
-			const userSession = (await storage.read(question.userId.toString())) || {
-				hasPaid: false,
-				awaitingQuestion: false,
-				awaitingReview: false,
-				awaitingPaymentPhoto: false,
-				awaitingAnswer: false,
-				awaitingRejectReason: false,
-				awaitingRejectPaymentReason: false,
-				awaitingSupportQuestion: false,
-				awaitingSupportAnswer: false,
-				currentQuestionId: null,
-				currentSupportQuestionId: null,
-				cart: [],
-				paidServices: [],
-				questionCount: 0,
-				paymentId: null,
-				lastMessageId: {},
-				history: [],
-			};
-
 			const userCtx = {
 				chat: { id: question.userId },
-				session: userSession,
+				session: ctx.session,
 				api: ctx.api,
 				answerCallbackQuery: () => {},
 			};
@@ -378,8 +326,6 @@ bot.on('message:text', async (ctx) => {
 				`Сообщение от администратора по вашему вопросу техподдержки #${questionId}:\n${answer}`,
 				createUserSupportQuestionActionKeyboard(questionId)
 			);
-
-			await storage.write(question.userId.toString(), userSession);
 
 			const sentMessage = await ctx.reply(
 				'Сообщение отправлено пользователю.',
@@ -391,6 +337,9 @@ bot.on('message:text', async (ctx) => {
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 			ctx.session.awaitingSupportAnswer = false;
 			ctx.session.currentSupportQuestionId = null;
+			logger.info(
+				`Admin answered support question ${questionId} for user ${question.userId}`
+			);
 		} else {
 			const sentMessage = await ctx.reply(
 				'Ошибка: вопрос техподдержки не найден.',
@@ -400,6 +349,7 @@ bot.on('message:text', async (ctx) => {
 				}
 			);
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+			logger.error(`Support question ${questionId} not found for answering`);
 		}
 	} else {
 		await handleText(ctx);
@@ -434,9 +384,27 @@ bot.on('message:photo', async (ctx) => {
 			}
 		);
 		ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+		logger.info(
+			`Payment photo uploaded for payment ${ctx.session.paymentId} by user ${ctx.from.id}`
+		);
 	}
 });
 
-bot.catch(handleError);
+bot.catch((err, ctx) => {
+	logger.error(
+		`Error for update ${ctx?.update?.update_id ?? 'unknown'}: ${err.message}`,
+		{ stack: err.stack }
+	);
+	handleError(err, ctx);
+});
+
+// Запуск бота
+bot.start().catch((err) => {
+	logger.error('Ошибка при запуске бота:', {
+		error: err.message,
+		stack: err.stack,
+	});
+	process.exit(1);
+});
 
 module.exports = bot;

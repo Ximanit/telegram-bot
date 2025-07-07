@@ -1,42 +1,40 @@
 const fs = require('fs').promises;
 const path = require('path');
 const axios = require('axios');
+const { connectDB } = require('../db');
+const logger = require('../logger');
 
-const PAYMENTS_FILE = path.join(__dirname, '../data/payments.json');
 const PAYMENTS_PHOTOS_DIR = path.join(__dirname, '../data/payments_photos');
-
-async function initPaymentsFile() {
-	try {
-		await fs.access(PAYMENTS_FILE);
-	} catch {
-		await fs.writeFile(PAYMENTS_FILE, JSON.stringify([], null, 2));
-	}
-}
 
 async function initPaymentsPhotosDir() {
 	try {
 		await fs.access(PAYMENTS_PHOTOS_DIR);
 	} catch {
 		await fs.mkdir(PAYMENTS_PHOTOS_DIR, { recursive: true });
+		logger.info('Created payments_photos directory');
 	}
 }
 
 async function getPayments() {
 	try {
-		await initPaymentsFile();
-		const data = await fs.readFile(PAYMENTS_FILE, 'utf8');
-		return JSON.parse(data);
+		const db = await connectDB();
+		const payments = await db.collection('payments').find({}).toArray();
+		logger.info(`Fetched ${payments.length} payments from MongoDB`);
+		return payments;
 	} catch (error) {
-		console.error('Ошибка чтения payments.json:', error);
+		logger.error('Ошибка чтения платежей из MongoDB:', {
+			error: error.message,
+			stack: error.stack,
+		});
 		return [];
 	}
 }
 
 async function addPayment(userId, username, cart, total) {
 	try {
-		const payments = await getPayments();
+		const db = await connectDB();
 		const newPayment = {
-			id: payments.length + 1,
+			id: (await db.collection('payments').countDocuments()) + 1,
 			userId,
 			username: username || `ID ${userId}`,
 			cart,
@@ -51,11 +49,14 @@ async function addPayment(userId, username, cart, total) {
 				0
 			),
 		};
-		payments.push(newPayment);
-		await fs.writeFile(PAYMENTS_FILE, JSON.stringify(payments, null, 2));
+		await db.collection('payments').insertOne(newPayment);
+		logger.info(`Added payment by user ${userId}, total: ${total}`);
 		return newPayment;
 	} catch (error) {
-		console.error('Ошибка добавления платежа:', error);
+		logger.error('Ошибка добавления платежа в MongoDB:', {
+			error: error.message,
+			stack: error.stack,
+		});
 		throw error;
 	}
 }
@@ -67,18 +68,28 @@ async function updatePaymentStatus(
 	rejectReason = null
 ) {
 	try {
-		const payments = await getPayments();
-		const payment = payments.find((p) => p.id === id);
-		if (payment) {
-			payment.status = status;
-			if (photo) payment.photo = photo;
-			if (rejectReason) payment.rejectReason = rejectReason;
-			await fs.writeFile(PAYMENTS_FILE, JSON.stringify(payments, null, 2));
-			return payment;
+		const db = await connectDB();
+		const updateFields = { status };
+		if (photo) updateFields.photo = photo;
+		if (rejectReason) updateFields.rejectReason = rejectReason;
+		const result = await db
+			.collection('payments')
+			.findOneAndUpdate(
+				{ id },
+				{ $set: updateFields },
+				{ returnDocument: 'after' }
+			);
+		if (result.value) {
+			logger.info(`Payment ${id} updated, status: ${status}`);
+			return result.value;
 		}
+		logger.warn(`Payment with id ${id} not found`);
 		return null;
 	} catch (error) {
-		console.error('Ошибка обновления статуса платежа:', error);
+		logger.error('Ошибка обновления статуса платежа в MongoDB:', {
+			error: error.message,
+			stack: error.stack,
+		});
 		throw error;
 	}
 }
@@ -94,9 +105,13 @@ async function savePaymentPhoto(fileId, paymentId, bot) {
 			`payment_${paymentId}_${Date.now()}.jpg`
 		);
 		await fs.writeFile(photoPath, response.data);
+		logger.info(`Saved payment photo for payment ${paymentId}`);
 		return photoPath;
 	} catch (error) {
-		console.error('Ошибка сохранения фото платежа:', error);
+		logger.error('Ошибка сохранения фото платежа:', {
+			error: error.message,
+			stack: error.stack,
+		});
 		throw error;
 	}
 }

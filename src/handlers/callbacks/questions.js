@@ -10,7 +10,6 @@ const {
 } = require('../../services/questions');
 const { MESSAGES } = require('../../constants');
 const { sendOrEditMessage } = require('../utils');
-const { FileAdapter } = require('@grammyjs/storage-file');
 
 const handleQuestionCallback = async (ctx, action) => {
 	if (action.startsWith('answer_question_')) {
@@ -47,26 +46,9 @@ const handleQuestionCallback = async (ctx, action) => {
 					? 'Администратор'
 					: 'Пользователь';
 
-			const storage = new FileAdapter({ dir: './src/data/sessions' });
-			const userSession = (await storage.read(question.userId.toString())) || {
-				hasPaid: false,
-				awaitingQuestion: false,
-				awaitingReview: false,
-				awaitingPaymentPhoto: false,
-				awaitingAnswer: false,
-				awaitingRejectReason: false,
-				currentQuestionId: null,
-				cart: [],
-				paidServices: [],
-				questionCount: 0,
-				paymentId: null,
-				lastMessageId: {},
-				history: [],
-			};
-
 			const userCtx = {
 				chat: { id: question.userId },
-				session: userSession,
+				session: ctx.session,
 				api: ctx.api,
 				answerCallbackQuery: () => {},
 			};
@@ -82,7 +64,6 @@ const handleQuestionCallback = async (ctx, action) => {
 				createReviewPromptKeyboard()
 			);
 
-			await storage.write(question.userId.toString(), userSession);
 			ctx.session.currentQuestionId = null;
 			await ctx.answerCallbackQuery('Вопрос закрыт');
 		} else {
