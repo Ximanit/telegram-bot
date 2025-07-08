@@ -13,6 +13,8 @@ const {
 	decreaseQuantity,
 } = require('../../services/cart');
 const { addPayment, updatePaymentStatus } = require('../../services/payments');
+const { connectDB } = require('../../db');
+const logger = require('../../logger');
 
 const handleCartCallback = async (ctx, action, userName) => {
 	if (action.startsWith('add_to_cart_')) {
@@ -63,7 +65,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 			ctx.session.cart,
 			total
 		);
-		ctx.session.paymentId = payment._id.toString(); // Сохраняем _id как строку
+		ctx.session.paymentId = payment._id.toString();
 		ctx.session.awaitingPaymentPhoto = true;
 		await sendOrEditMessage(
 			ctx,
@@ -80,21 +82,50 @@ const handleCartCallback = async (ctx, action, userName) => {
 		if (payment) {
 			const questionCount = payment.questionCount;
 
-			ctx.session.paidServices = payment.cart.flatMap((item) =>
-				Array(item.quantity).fill({
-					name: item.name,
-					price: item.price,
-					id: item.id,
-				})
-			);
-			ctx.session.hasPaid = true;
-			ctx.session.questionCount = questionCount;
-			ctx.session.awaitingQuestion = questionCount > 0;
-			ctx.session.cart = [];
+			// Получение и обновление сессии пользователя
+			const db = await connectDB();
+			const sessions = db.collection('sessions');
+			const userSession = await sessions.findOne({
+				key: payment.userId.toString(),
+			});
+			if (!userSession) {
+				logger.error(`Session for user ${payment.userId} not found`);
+				await sendOrEditMessage(
+					ctx,
+					'Ошибка: сессия пользователя не найдена.',
+					createBackKeyboard(ctx.session.questionCount)
+				);
+				await ctx.answerCallbackQuery('Ошибка: сессия пользователя не найдена');
+				return;
+			}
 
+			// Обновление данных сессии пользователя
+			const updatedSessionData = {
+				paidServices: payment.cart.flatMap((item) =>
+					Array(item.quantity).fill({
+						name: item.name,
+						price: item.price,
+						id: item.id,
+					})
+				),
+				hasPaid: true,
+				questionCount,
+				awaitingQuestion: questionCount > 0,
+				cart: [],
+			};
+
+			await sessions.updateOne(
+				{ key: payment.userId.toString() },
+				{ $set: { value: { ...userSession.value, ...updatedSessionData } } }
+			);
+			logger.info(
+				`Updated session for user ${payment.userId} with questionCount: ${questionCount}`
+			);
+
+			// Отправка уведомления пользователю
 			const userCtx = {
 				chat: { id: payment.userId },
-				session: ctx.session,
+				session: { ...userSession.value, ...updatedSessionData },
 				api: ctx.api,
 				answerCallbackQuery: () => {},
 			};
@@ -108,6 +139,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 				createStartKeyboard(questionCount)
 			);
 
+			// Уведомление администратору
 			await sendOrEditMessage(
 				ctx,
 				'Платеж подтвержден',
@@ -124,8 +156,18 @@ const handleCartCallback = async (ctx, action, userName) => {
 		}
 	} else if (action.startsWith('reject_payment_')) {
 		const paymentId = action.replace('reject_payment_', '');
+		const payment = await updatePaymentStatus(paymentId, 'rejected');
+		if (!payment) {
+			await sendOrEditMessage(
+				ctx,
+				'Ошибка: платеж не найден.',
+				createBackKeyboard(ctx.session.questionCount)
+			);
+			await ctx.answerCallbackQuery('Ошибка: платеж не найден');
+			return;
+		}
 		ctx.session.awaitingRejectPaymentReason = true;
-		ctx.session.paymentId = paymentId; // Сохраняем _id как строку
+		ctx.session.paymentId = paymentId;
 		await sendOrEditMessage(
 			ctx,
 			MESSAGES.rejectPaymentReasonPrompt,
