@@ -2,6 +2,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const axios = require('axios');
 const { connectDB } = require('../db');
+const { ObjectId } = require('mongodb');
 const logger = require('../logger');
 
 const PAYMENTS_PHOTOS_DIR = path.join(__dirname, '../data/payments_photos');
@@ -34,7 +35,6 @@ async function addPayment(userId, username, cart, total) {
 	try {
 		const db = await connectDB();
 		const newPayment = {
-			id: (await db.collection('payments').countDocuments()) + 1,
 			userId,
 			username: username || `ID ${userId}`,
 			cart,
@@ -49,9 +49,11 @@ async function addPayment(userId, username, cart, total) {
 				0
 			),
 		};
-		await db.collection('payments').insertOne(newPayment);
-		logger.info(`Added payment by user ${userId}, total: ${total}`);
-		return newPayment;
+		const result = await db.collection('payments').insertOne(newPayment);
+		logger.info(
+			`Added payment by user ${userId}, total: ${total}, _id: ${result.insertedId}`
+		);
+		return { ...newPayment, _id: result.insertedId };
 	} catch (error) {
 		logger.error('Ошибка добавления платежа в MongoDB:', {
 			error: error.message,
@@ -62,7 +64,7 @@ async function addPayment(userId, username, cart, total) {
 }
 
 async function updatePaymentStatus(
-	id,
+	_id,
 	status,
 	photo = null,
 	rejectReason = null
@@ -71,10 +73,16 @@ async function updatePaymentStatus(
 		const db = await connectDB();
 		const collection = db.collection('payments');
 
+		// Преобразуем _id в ObjectId, если это строка
+		const paymentId = typeof _id === 'string' ? new ObjectId(_id) : _id;
+		logger.info(
+			`Updating payment with _id: ${paymentId}, type: ${typeof paymentId}`
+		);
+
 		// Поиск платежа
-		const payment = await collection.findOne({ id });
+		const payment = await collection.findOne({ _id: paymentId });
 		if (!payment) {
-			logger.warn(`Payment with id ${id} not found`);
+			logger.warn(`Payment with _id ${paymentId} not found`);
 			return null;
 		}
 
@@ -84,16 +92,19 @@ async function updatePaymentStatus(
 		if (rejectReason) updateFields.rejectReason = rejectReason;
 
 		// Обновление платежа
-		const result = await collection.updateOne({ id }, { $set: updateFields });
+		const result = await collection.updateOne(
+			{ _id: paymentId },
+			{ $set: updateFields }
+		);
 
 		if (result.matchedCount === 0) {
-			logger.warn(`Payment with id ${id} not found during update`);
+			logger.warn(`Payment with _id ${paymentId} not found during update`);
 			return null;
 		}
 
 		// Получение обновленного документа
-		const updatedPayment = await collection.findOne({ id });
-		logger.info(`Payment ${id} updated, status: ${status}`);
+		const updatedPayment = await collection.findOne({ _id: paymentId });
+		logger.info(`Payment ${paymentId} updated, status: ${status}`);
 		return updatedPayment;
 	} catch (error) {
 		logger.error('Ошибка обновления статуса платежа в MongoDB:', {

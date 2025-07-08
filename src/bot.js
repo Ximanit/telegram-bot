@@ -190,7 +190,8 @@ bot.on('message:text', async (ctx) => {
 				createReviewPromptKeyboard()
 			);
 
-			const sentMessage = await ctx.reply(
+			const sentMessage = await ctx.api.sendMessage(
+				ctx.chat.id,
 				'Вопрос отклонен, причина отправлена пользователю.',
 				{
 					parse_mode: 'Markdown',
@@ -204,10 +205,14 @@ bot.on('message:text', async (ctx) => {
 				`Question ${questionId} rejected by admin for user ${question.userId}`
 			);
 		} else {
-			const sentMessage = await ctx.reply('Ошибка: вопрос не найден.', {
-				parse_mode: 'Markdown',
-				reply_markup: createBackKeyboard(),
-			});
+			const sentMessage = await ctx.api.sendMessage(
+				ctx.chat.id,
+				'Ошибка: вопрос не найден.',
+				{
+					parse_mode: 'Markdown',
+					reply_markup: createBackKeyboard(),
+				}
+			);
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 			logger.error(`Question ${questionId} not found for rejection`);
 		}
@@ -240,7 +245,8 @@ bot.on('message:text', async (ctx) => {
 				createStartKeyboard(0)
 			);
 
-			const sentMessage = await ctx.reply(
+			const sentMessage = await ctx.api.sendMessage(
+				ctx.chat.id,
 				'Платеж отклонен, причина отправлена пользователю.',
 				{
 					parse_mode: 'Markdown',
@@ -254,10 +260,14 @@ bot.on('message:text', async (ctx) => {
 				`Payment ${paymentId} rejected by admin for user ${payment.userId}`
 			);
 		} else {
-			const sentMessage = await ctx.reply('Ошибка: платеж не найден.', {
-				parse_mode: 'Markdown',
-				reply_markup: createBackKeyboard(),
-			});
+			const sentMessage = await ctx.api.sendMessage(
+				ctx.chat.id,
+				'Ошибка: платеж не найден.',
+				{
+					parse_mode: 'Markdown',
+					reply_markup: createBackKeyboard(),
+				}
+			);
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 			logger.error(`Payment ${paymentId} not found for rejection`);
 		}
@@ -282,7 +292,8 @@ bot.on('message:text', async (ctx) => {
 				createUserQuestionActionKeyboard(questionId)
 			);
 
-			const sentMessage = await ctx.reply(
+			const sentMessage = await ctx.api.sendMessage(
+				ctx.chat.id,
 				'Сообщение отправлено пользователю.',
 				{
 					parse_mode: 'Markdown',
@@ -295,10 +306,14 @@ bot.on('message:text', async (ctx) => {
 				`Admin answered question ${questionId} for user ${question.userId}`
 			);
 		} else {
-			const sentMessage = await ctx.reply('Ошибка: вопрос не найден.', {
-				parse_mode: 'Markdown',
-				reply_markup: createBackKeyboard(),
-			});
+			const sentMessage = await ctx.api.sendMessage(
+				ctx.chat.id,
+				'Ошибка: вопрос не найден.',
+				{
+					parse_mode: 'Markdown',
+					reply_markup: createBackKeyboard(),
+				}
+			);
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 			logger.error(`Question ${questionId} not found for answering`);
 		}
@@ -327,7 +342,8 @@ bot.on('message:text', async (ctx) => {
 				createUserSupportQuestionActionKeyboard(questionId)
 			);
 
-			const sentMessage = await ctx.reply(
+			const sentMessage = await ctx.api.sendMessage(
+				ctx.chat.id,
 				'Сообщение отправлено пользователю.',
 				{
 					parse_mode: 'Markdown',
@@ -341,7 +357,8 @@ bot.on('message:text', async (ctx) => {
 				`Admin answered support question ${questionId} for user ${question.userId}`
 			);
 		} else {
-			const sentMessage = await ctx.reply(
+			const sentMessage = await ctx.api.sendMessage(
+				ctx.chat.id,
 				'Ошибка: вопрос техподдержки не найден.',
 				{
 					parse_mode: 'Markdown',
@@ -376,7 +393,8 @@ bot.on('message:photo', async (ctx) => {
 		});
 		ctx.session.awaitingPaymentPhoto = false;
 		ctx.session.paymentId = null;
-		const sentMessage = await ctx.reply(
+		const sentMessage = await ctx.api.sendMessage(
+			ctx.chat.id,
 			'Фото чека отправлено на проверку администратору.',
 			{
 				parse_mode: 'Markdown',

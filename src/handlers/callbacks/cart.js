@@ -63,7 +63,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 			ctx.session.cart,
 			total
 		);
-		ctx.session.paymentId = payment.id;
+		ctx.session.paymentId = payment._id.toString(); // Сохраняем _id как строку
 		ctx.session.awaitingPaymentPhoto = true;
 		await sendOrEditMessage(
 			ctx,
@@ -75,7 +75,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 		);
 		await ctx.answerCallbackQuery();
 	} else if (action.startsWith('confirm_payment_')) {
-		const paymentId = parseInt(action.replace('confirm_payment_', ''));
+		const paymentId = action.replace('confirm_payment_', '');
 		const payment = await updatePaymentStatus(paymentId, 'confirmed');
 		if (payment) {
 			const questionCount = payment.questionCount;
@@ -115,12 +115,17 @@ const handleCartCallback = async (ctx, action, userName) => {
 			);
 			await ctx.answerCallbackQuery('Платеж подтвержден');
 		} else {
+			await sendOrEditMessage(
+				ctx,
+				'Ошибка: платеж не найден.',
+				createBackKeyboard(ctx.session.questionCount)
+			);
 			await ctx.answerCallbackQuery('Ошибка: платеж не найден');
 		}
 	} else if (action.startsWith('reject_payment_')) {
-		const paymentId = parseInt(action.replace('reject_payment_', ''));
+		const paymentId = action.replace('reject_payment_', '');
 		ctx.session.awaitingRejectPaymentReason = true;
-		ctx.session.paymentId = paymentId;
+		ctx.session.paymentId = paymentId; // Сохраняем _id как строку
 		await sendOrEditMessage(
 			ctx,
 			MESSAGES.rejectPaymentReasonPrompt,
