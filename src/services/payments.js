@@ -69,22 +69,32 @@ async function updatePaymentStatus(
 ) {
 	try {
 		const db = await connectDB();
+		const collection = db.collection('payments');
+
+		// Поиск платежа
+		const payment = await collection.findOne({ id });
+		if (!payment) {
+			logger.warn(`Payment with id ${id} not found`);
+			return null;
+		}
+
+		// Подготовка полей для обновления
 		const updateFields = { status };
 		if (photo) updateFields.photo = photo;
 		if (rejectReason) updateFields.rejectReason = rejectReason;
-		const result = await db
-			.collection('payments')
-			.findOneAndUpdate(
-				{ id },
-				{ $set: updateFields },
-				{ returnDocument: 'after' }
-			);
-		if (result.value) {
-			logger.info(`Payment ${id} updated, status: ${status}`);
-			return result.value;
+
+		// Обновление платежа
+		const result = await collection.updateOne({ id }, { $set: updateFields });
+
+		if (result.matchedCount === 0) {
+			logger.warn(`Payment with id ${id} not found during update`);
+			return null;
 		}
-		logger.warn(`Payment with id ${id} not found`);
-		return null;
+
+		// Получение обновленного документа
+		const updatedPayment = await collection.findOne({ id });
+		logger.info(`Payment ${id} updated, status: ${status}`);
+		return updatedPayment;
 	} catch (error) {
 		logger.error('Ошибка обновления статуса платежа в MongoDB:', {
 			error: error.message,

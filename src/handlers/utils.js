@@ -6,10 +6,14 @@ const handleError = async (err, ctx) => {
 	console.error(`Error for update ${updateId}:`, err);
 	if (ctx?.chat) {
 		try {
-			const sentMessage = await ctx.reply(MESSAGES.error, {
-				parse_mode: 'Markdown',
-				reply_markup: createStartKeyboard(ctx.session.questionCount),
-			});
+			const sentMessage = await ctx.api.sendMessage(
+				ctx.chat.id,
+				MESSAGES.error,
+				{
+					parse_mode: 'Markdown',
+					reply_markup: createStartKeyboard(ctx.session.questionCount),
+				}
+			);
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 			if (ctx.callbackQuery) {
 				await ctx.answerCallbackQuery({ text: MESSAGES.errorCallback });
@@ -65,7 +69,7 @@ const sendOrEditMessage = async (
 
 		// Если forceNew или нет lastMessageId, отправляем новое сообщение
 		if (forceNew || !ctx.session.lastMessageId[chatId]) {
-			const sentMessage = await ctx.reply(text, {
+			const sentMessage = await ctx.api.sendMessage(chatId, text, {
 				parse_mode: 'Markdown',
 				reply_markup: keyboard,
 			});
@@ -101,7 +105,7 @@ const sendOrEditMessage = async (
 				error.description?.includes('message to edit not found') ||
 				error.description?.includes('bad request')
 			) {
-				const sentMessage = await ctx.reply(text, {
+				const sentMessage = await ctx.api.sendMessage(chatId, text, {
 					parse_mode: 'Markdown',
 					reply_markup: keyboard,
 				});
