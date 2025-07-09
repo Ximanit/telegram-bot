@@ -10,6 +10,7 @@ const {
 	addSupportDialogueMessage,
 	getSupportQuestions,
 } = require('../../services/support');
+const { ObjectId } = require('mongodb');
 
 const validateSupportQuestion = (text) => {
 	const trimmed = text.trim();
@@ -43,12 +44,14 @@ const handleSupportQuestionText = async (ctx) => {
 			`Новый вопрос техподдержки от ${userInfo} (${userName}):\n${question}`,
 			{
 				parse_mode: 'Markdown',
-				reply_markup: createSupportQuestionActionKeyboard(newQuestion.id),
+				reply_markup: createSupportQuestionActionKeyboard(
+					newQuestion._id.toString()
+				),
 			}
 		);
 
 		ctx.session.awaitingSupportQuestion = false;
-		ctx.session.currentSupportQuestionId = newQuestion.id;
+		ctx.session.currentSupportQuestionId = newQuestion._id.toString();
 		const sentMessage = await ctx.reply(MESSAGES.supportQuestionSent, {
 			parse_mode: 'Markdown',
 			reply_markup: createStartKeyboard(ctx.session.questionCount),
@@ -57,7 +60,7 @@ const handleSupportQuestionText = async (ctx) => {
 	} else if (ctx.session.currentSupportQuestionId) {
 		const question = (await getSupportQuestions()).find(
 			(q) =>
-				q.id === ctx.session.currentSupportQuestionId &&
+				q._id.toString() === ctx.session.currentSupportQuestionId &&
 				q.status === 'in_progress'
 		);
 		if (question) {
@@ -65,18 +68,22 @@ const handleSupportQuestionText = async (ctx) => {
 				? `@${ctx.from.username}`
 				: `ID ${ctx.from.id}`;
 			const userName = ctx.from?.first_name || 'Пользователь';
-			await addSupportDialogueMessage(question.id, 'user', ctx.message.text);
+			await addSupportDialogueMessage(question._id, 'user', ctx.message.text);
 			await ctx.api.sendMessage(
 				process.env.ADMIN_ID,
-				`Сообщение от ${userInfo} (${userName}) по вопросу техподдержки #${question.id}:\n${ctx.message.text}`,
+				`Сообщение от ${userInfo} (${userName}) по вопросу техподдержки #${question._id}:\n${ctx.message.text}`,
 				{
 					parse_mode: 'Markdown',
-					reply_markup: createSupportQuestionActionKeyboard(question.id),
+					reply_markup: createSupportQuestionActionKeyboard(
+						question._id.toString()
+					),
 				}
 			);
 			const sentMessage = await ctx.reply(MESSAGES.dialogueMessageSent, {
 				parse_mode: 'Markdown',
-				reply_markup: createUserSupportQuestionActionKeyboard(question.id),
+				reply_markup: createUserSupportQuestionActionKeyboard(
+					question._id.toString()
+				),
 			});
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 		} else {

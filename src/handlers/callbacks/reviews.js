@@ -24,7 +24,13 @@ const callbackHandlers = {
 		},
 	},
 	approve_review: async (ctx) => {
-		const reviewId = parseInt(ctx.callbackQuery.data.split('_').pop());
+		const reviewId = ctx.callbackQuery.data.replace('approve_review_', '');
+		if (!reviewId || reviewId === 'undefined') {
+			await ctx.answerCallbackQuery(
+				'Ошибка: некорректный идентификатор отзыва'
+			);
+			return;
+		}
 		const review = await updateReviewStatus(reviewId, true);
 		if (review) {
 			await ctx.answerCallbackQuery(MESSAGES.reviewApproved);
@@ -38,7 +44,13 @@ const callbackHandlers = {
 		}
 	},
 	reject_review: async (ctx) => {
-		const reviewId = parseInt(ctx.callbackQuery.data.split('_').pop());
+		const reviewId = ctx.callbackQuery.data.replace('approve_review_', '');
+		if (!reviewId || reviewId === 'undefined') {
+			await ctx.answerCallbackQuery(
+				'Ошибка: некорректный идентификатор отзыва'
+			);
+			return;
+		}
 		const review = await updateReviewStatus(reviewId, false);
 		if (review) {
 			await ctx.answerCallbackQuery(MESSAGES.reviewRejected);

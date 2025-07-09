@@ -12,7 +12,7 @@ const { sendOrEditMessage } = require('../utils');
 
 const handleSupportQuestionCallback = async (ctx, action) => {
 	if (action.startsWith('answer_support_question_')) {
-		const questionId = parseInt(action.replace('answer_support_question_', ''));
+		const questionId = action.replace('answer_support_question_', '');
 		const question = await updateSupportQuestionStatus(
 			questionId,
 			'in_progress'
@@ -30,7 +30,7 @@ const handleSupportQuestionCallback = async (ctx, action) => {
 			await ctx.answerCallbackQuery('Ошибка: вопрос техподдержки не найден');
 		}
 	} else if (action.startsWith('close_support_question_')) {
-		const questionId = parseInt(action.replace('close_support_question_', ''));
+		const questionId = action.replace('close_support_question_', '');
 		const question = await updateSupportQuestionStatus(questionId, 'closed');
 		if (question) {
 			const sender =
@@ -62,9 +62,7 @@ const handleSupportQuestionCallback = async (ctx, action) => {
 			await ctx.answerCallbackQuery('Ошибка: вопрос техподдержки не найден');
 		}
 	} else if (action.startsWith('clarify_support_question_')) {
-		const questionId = parseInt(
-			action.replace('clarify_support_question_', '')
-		);
+		const questionId = action.replace('clarify_support_question_', '');
 		ctx.session.currentSupportQuestionId = questionId;
 		await sendOrEditMessage(
 			ctx,

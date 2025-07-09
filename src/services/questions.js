@@ -1,4 +1,5 @@
 const { connectDB } = require('../db');
+const { ObjectId } = require('mongodb');
 const logger = require('../logger');
 
 async function getQuestions() {
@@ -20,18 +21,18 @@ async function addQuestion(userId, username, text) {
 	try {
 		const db = await connectDB();
 		const newQuestion = {
-			id: (await db.collection('questions').countDocuments()) + 1,
 			userId,
 			username: username || `ID ${userId}`,
 			text,
 			status: 'pending',
-			rejectReason: null,
 			dialogue: [],
 			timestamp: new Date().toISOString(),
 		};
-		await db.collection('questions').insertOne(newQuestion);
-		logger.info(`Added question by user ${userId}: ${text}`);
-		return newQuestion;
+		const result = await db.collection('questions').insertOne(newQuestion);
+		logger.info(
+			`Added question by user ${userId}: ${text}, _id: ${result.insertedId}`
+		);
+		return { ...newQuestion, _id: result.insertedId };
 	} catch (error) {
 		logger.error('Ошибка добавления вопроса в MongoDB:', {
 			error: error.message,
@@ -41,24 +42,39 @@ async function addQuestion(userId, username, text) {
 	}
 }
 
-async function updateQuestionStatus(id, status, rejectReason = null) {
+async function updateQuestionStatus(_id, status, rejectReason = null) {
 	try {
 		const db = await connectDB();
+		const questionId = typeof _id === 'string' ? new ObjectId(_id) : _id;
+
+		// Поиск документа
+		const question = await db
+			.collection('questions')
+			.findOne({ _id: questionId });
+		if (!question) {
+			logger.warn(`Question with _id ${_id} not found`);
+			return null;
+		}
+
+		// Обновление документа
 		const updateFields = { status };
 		if (rejectReason) updateFields.rejectReason = rejectReason;
+
 		const result = await db
 			.collection('questions')
-			.findOneAndUpdate(
-				{ id },
-				{ $set: updateFields },
-				{ returnDocument: 'after' }
-			);
-		if (result.value) {
-			logger.info(`Question ${id} updated, status: ${status}`);
-			return result.value;
+			.updateOne({ _id: questionId }, { $set: updateFields });
+
+		if (result.matchedCount === 0) {
+			logger.warn(`Question with _id ${_id} not found during update`);
+			return null;
 		}
-		logger.warn(`Question with id ${id} not found`);
-		return null;
+
+		// Повторный поиск для возврата обновленного документа
+		const updatedQuestion = await db
+			.collection('questions')
+			.findOne({ _id: questionId });
+		logger.info(`Question ${_id} updated, status: ${status}`);
+		return updatedQuestion;
 	} catch (error) {
 		logger.error('Ошибка обновления статуса вопроса в MongoDB:', {
 			error: error.message,
@@ -68,11 +84,23 @@ async function updateQuestionStatus(id, status, rejectReason = null) {
 	}
 }
 
-async function addDialogueMessage(questionId, sender, message) {
+async function addDialogueMessage(_id, sender, message) {
 	try {
 		const db = await connectDB();
-		const result = await db.collection('questions').findOneAndUpdate(
-			{ id: questionId },
+		const questionId = typeof _id === 'string' ? new ObjectId(_id) : _id;
+
+		// Поиск документа
+		const question = await db
+			.collection('questions')
+			.findOne({ _id: questionId });
+		if (!question) {
+			logger.warn(`Question with _id ${_id} not found`);
+			return null;
+		}
+
+		// Обновление документа
+		const result = await db.collection('questions').updateOne(
+			{ _id: questionId },
 			{
 				$push: {
 					dialogue: {
@@ -81,19 +109,22 @@ async function addDialogueMessage(questionId, sender, message) {
 						timestamp: new Date().toISOString(),
 					},
 				},
-			},
-			{ returnDocument: 'after' }
+			}
 		);
-		if (result.value) {
-			logger.info(
-				`Added dialogue message to question ${questionId} by ${sender}`
-			);
-			return result.value;
+
+		if (result.matchedCount === 0) {
+			logger.warn(`Question with _id ${_id} not found during update`);
+			return null;
 		}
-		logger.warn(`Question with id ${questionId} not found`);
-		return null;
+
+		// Повторный поиск для возврата обновленного документа
+		const updatedQuestion = await db
+			.collection('questions')
+			.findOne({ _id: questionId });
+		logger.info(`Added dialogue message to question ${_id} by ${sender}`);
+		return updatedQuestion;
 	} catch (error) {
-		logger.error('Ошибка добавления сообщения в диалог:', {
+		logger.error('Ошибка добавления сообщения в диалог вопроса:', {
 			error: error.message,
 			stack: error.stack,
 		});
@@ -101,16 +132,9 @@ async function addDialogueMessage(questionId, sender, message) {
 	}
 }
 
-const hasQuestionService = (session) => {
-	return session.paidServices?.some(
-		(s) => s.id === 'single_question' && (session.questionCount || 0) < 1
-	);
-};
-
 module.exports = {
-	hasQuestionService,
+	getQuestions,
 	addQuestion,
 	updateQuestionStatus,
-	getQuestions,
 	addDialogueMessage,
 };

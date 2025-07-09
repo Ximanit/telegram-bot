@@ -1,4 +1,5 @@
 const { connectDB } = require('../db');
+const { ObjectId } = require('mongodb');
 const logger = require('../logger');
 
 async function getSupportQuestions() {
@@ -23,7 +24,6 @@ async function addSupportQuestion(userId, username, text) {
 	try {
 		const db = await connectDB();
 		const newQuestion = {
-			id: (await db.collection('support_questions').countDocuments()) + 1,
 			userId,
 			username: username || `ID ${userId}`,
 			text,
@@ -31,9 +31,13 @@ async function addSupportQuestion(userId, username, text) {
 			dialogue: [],
 			timestamp: new Date().toISOString(),
 		};
-		await db.collection('support_questions').insertOne(newQuestion);
-		logger.info(`Added support question by user ${userId}: ${text}`);
-		return newQuestion;
+		const result = await db
+			.collection('support_questions')
+			.insertOne(newQuestion);
+		logger.info(
+			`Added support question by user ${userId}: ${text}, _id: ${result.insertedId}`
+		);
+		return { ...newQuestion, _id: result.insertedId };
 	} catch (error) {
 		logger.error('Ошибка добавления вопроса техподдержки в MongoDB:', {
 			error: error.message,
@@ -43,22 +47,36 @@ async function addSupportQuestion(userId, username, text) {
 	}
 }
 
-async function updateSupportQuestionStatus(id, status) {
+async function updateSupportQuestionStatus(_id, status) {
 	try {
 		const db = await connectDB();
+		const questionId = typeof _id === 'string' ? new ObjectId(_id) : _id;
+
+		// Поиск документа
+		const question = await db
+			.collection('support_questions')
+			.findOne({ _id: questionId });
+		if (!question) {
+			logger.warn(`Support question with _id ${_id} not found`);
+			return null;
+		}
+
+		// Обновление документа
 		const result = await db
 			.collection('support_questions')
-			.findOneAndUpdate(
-				{ id },
-				{ $set: { status } },
-				{ returnDocument: 'after' }
-			);
-		if (result.value) {
-			logger.info(`Support question ${id} updated, status: ${status}`);
-			return result.value;
+			.updateOne({ _id: questionId }, { $set: { status } });
+
+		if (result.matchedCount === 0) {
+			logger.warn(`Support question with _id ${_id} not found during update`);
+			return null;
 		}
-		logger.warn(`Support question with id ${id} not found`);
-		return null;
+
+		// Повторный поиск для возврата обновленного документа
+		const updatedQuestion = await db
+			.collection('support_questions')
+			.findOne({ _id: questionId });
+		logger.info(`Support question ${_id} updated, status: ${status}`);
+		return updatedQuestion;
 	} catch (error) {
 		logger.error('Ошибка обновления статуса вопроса техподдержки в MongoDB:', {
 			error: error.message,
@@ -68,11 +86,23 @@ async function updateSupportQuestionStatus(id, status) {
 	}
 }
 
-async function addSupportDialogueMessage(questionId, sender, message) {
+async function addSupportDialogueMessage(_id, sender, message) {
 	try {
 		const db = await connectDB();
-		const result = await db.collection('support_questions').findOneAndUpdate(
-			{ id: questionId },
+		const questionId = typeof _id === 'string' ? new ObjectId(_id) : _id;
+
+		// Поиск документа
+		const question = await db
+			.collection('support_questions')
+			.findOne({ _id: questionId });
+		if (!question) {
+			logger.warn(`Support question with _id ${_id} not found`);
+			return null;
+		}
+
+		// Обновление документа
+		const result = await db.collection('support_questions').updateOne(
+			{ _id: questionId },
 			{
 				$push: {
 					dialogue: {
@@ -81,17 +111,22 @@ async function addSupportDialogueMessage(questionId, sender, message) {
 						timestamp: new Date().toISOString(),
 					},
 				},
-			},
-			{ returnDocument: 'after' }
+			}
 		);
-		if (result.value) {
-			logger.info(
-				`Added dialogue message to support question ${questionId} by ${sender}`
-			);
-			return result.value;
+
+		if (result.matchedCount === 0) {
+			logger.warn(`Support question with _id ${_id} not found during update`);
+			return null;
 		}
-		logger.warn(`Support question with id ${questionId} not found`);
-		return null;
+
+		// Повторный поиск для возврата обновленного документа
+		const updatedQuestion = await db
+			.collection('support_questions')
+			.findOne({ _id: questionId });
+		logger.info(
+			`Added dialogue message to support question ${_id} by ${sender}`
+		);
+		return updatedQuestion;
 	} catch (error) {
 		logger.error('Ошибка добавления сообщения в диалог техподдержки:', {
 			error: error.message,

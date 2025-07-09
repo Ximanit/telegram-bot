@@ -10,6 +10,7 @@ const {
 	addDialogueMessage,
 	getQuestions,
 } = require('../../services/questions');
+const { ObjectId } = require('mongodb');
 
 const validateQuestion = (text) => {
 	const trimmed = text.trim();
@@ -53,13 +54,13 @@ const handleQuestionText = async (ctx) => {
 			`Новый вопрос от ${userInfo} (${userName}):\n${question}`,
 			{
 				parse_mode: 'Markdown',
-				reply_markup: createQuestionActionKeyboard(newQuestion.id),
+				reply_markup: createQuestionActionKeyboard(newQuestion._id.toString()),
 			}
 		);
 
 		ctx.session.questionCount -= 1;
 		ctx.session.awaitingQuestion = false;
-		ctx.session.currentQuestionId = newQuestion.id;
+		ctx.session.currentQuestionId = newQuestion._id.toString();
 		const sentMessage = await ctx.reply(
 			`${MESSAGES.questionSent}\nОсталось вопросов: ${ctx.session.questionCount}`,
 			{
@@ -71,25 +72,26 @@ const handleQuestionText = async (ctx) => {
 	} else if (ctx.session.currentQuestionId) {
 		const question = (await getQuestions()).find(
 			(q) =>
-				q.id === ctx.session.currentQuestionId && q.status === 'in_progress'
+				q._id.toString() === ctx.session.currentQuestionId &&
+				q.status === 'in_progress'
 		);
 		if (question) {
 			const userInfo = ctx.from.username
 				? `@${ctx.from.username}`
 				: `ID ${ctx.from.id}`;
 			const userName = ctx.from?.first_name || 'Пользователь';
-			await addDialogueMessage(question.id, 'user', ctx.message.text);
+			await addDialogueMessage(question._id, 'user', ctx.message.text);
 			await ctx.api.sendMessage(
 				process.env.ADMIN_ID,
-				`Сообщение от ${userInfo} (${userName}) по вопросу #${question.id}:\n${ctx.message.text}`,
+				`Сообщение от ${userInfo} (${userName}) по вопросу #${question._id}:\n${ctx.message.text}`,
 				{
 					parse_mode: 'Markdown',
-					reply_markup: createQuestionActionKeyboard(question.id),
+					reply_markup: createQuestionActionKeyboard(question._id.toString()),
 				}
 			);
 			const sentMessage = await ctx.reply(MESSAGES.dialogueMessageSent, {
 				parse_mode: 'Markdown',
-				reply_markup: createUserQuestionActionKeyboard(question.id),
+				reply_markup: createUserQuestionActionKeyboard(question._id.toString()),
 			});
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 		} else {

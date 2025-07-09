@@ -104,6 +104,7 @@ bot.on('callback_query:data', async (ctx) => {
 		ctx.session.awaitingRejectReason = false;
 		ctx.session.awaitingRejectPaymentReason = false;
 		ctx.session.currentQuestionId = null;
+		ctx.session.currentSupportQuestionId = null;
 		ctx.session.paymentId = null;
 		ctx.session.lastAction = null;
 

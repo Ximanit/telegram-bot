@@ -13,7 +13,7 @@ const { sendOrEditMessage } = require('../utils');
 
 const handleQuestionCallback = async (ctx, action) => {
 	if (action.startsWith('answer_question_')) {
-		const questionId = parseInt(action.replace('answer_question_', ''));
+		const questionId = action.replace('answer_question_', '');
 		const question = await updateQuestionStatus(questionId, 'in_progress');
 		if (question) {
 			ctx.session.awaitingAnswer = true;
@@ -28,7 +28,7 @@ const handleQuestionCallback = async (ctx, action) => {
 			await ctx.answerCallbackQuery('Ошибка: вопрос не найден');
 		}
 	} else if (action.startsWith('reject_question_')) {
-		const questionId = parseInt(action.replace('reject_question_', ''));
+		const questionId = action.replace('reject_question_', '');
 		ctx.session.awaitingRejectReason = true;
 		ctx.session.currentQuestionId = questionId;
 		await sendOrEditMessage(
@@ -38,7 +38,7 @@ const handleQuestionCallback = async (ctx, action) => {
 		);
 		await ctx.answerCallbackQuery();
 	} else if (action.startsWith('close_question_')) {
-		const questionId = parseInt(action.replace('close_question_', ''));
+		const questionId = action.replace('close_question_', '');
 		const question = await updateQuestionStatus(questionId, 'closed');
 		if (question) {
 			const sender =
@@ -70,6 +70,8 @@ const handleQuestionCallback = async (ctx, action) => {
 			await ctx.answerCallbackQuery('Ошибка: вопрос не найден');
 		}
 	} else if (action.startsWith('clarify_question_')) {
+		const questionId = action.replace('clarify_question_', '');
+		ctx.session.currentQuestionId = questionId;
 		await sendOrEditMessage(
 			ctx,
 			'Пожалуйста, отправьте уточнение:',

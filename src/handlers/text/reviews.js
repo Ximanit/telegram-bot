@@ -31,7 +31,7 @@ const handleReviewText = async (ctx) => {
 			.replace('%text', reviewText),
 		{
 			parse_mode: 'Markdown',
-			reply_markup: createReviewModerationKeyboard(review.id),
+			reply_markup: createReviewModerationKeyboard(review._id.toString()),
 		}
 	);
 
