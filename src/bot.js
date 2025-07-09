@@ -1,6 +1,6 @@
 const { Bot, session, Composer } = require('grammy');
 const { MongoDBAdapter } = require('@grammyjs/storage-mongodb');
-const { connectDB } = require('./db');
+const { connectDB, updateSession } = require('./db');
 require('dotenv').config();
 const logger = require('./logger');
 const { handleStart } = require('./handlers/commands/start');
@@ -61,7 +61,7 @@ const composer = new Composer();
 					paidServices: [],
 					questionCount: 0,
 					paymentId: null,
-					lastMessageId: {},
+					lastMessageId: {}, // Гарантируем инициализацию как объекта
 					history: [],
 				}),
 			})
@@ -90,11 +90,12 @@ bot.on('callback_query:data', async (ctx) => {
 	);
 	if (ctx.callbackQuery.data === 'ask_question') {
 		ctx.session.awaitingQuestion = true;
-		await sendOrEditMessage(
+		const sentMessage = await sendOrEditMessage(
 			ctx,
 			'Пожалуйста, задайте ваш вопрос:',
 			createBackKeyboard(ctx.session.questionCount)
 		);
+		ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 		await ctx.answerCallbackQuery();
 	} else if (ctx.callbackQuery.data === 'back') {
 		ctx.session.awaitingQuestion = false;
@@ -118,37 +119,40 @@ bot.on('callback_query:data', async (ctx) => {
 			ctx.session.history.pop();
 			const previousState = ctx.session.history.pop();
 			if (previousState) {
-				await sendOrEditMessage(
+				const sentMessage = await sendOrEditMessage(
 					ctx,
 					previousState.text,
 					previousState.keyboard,
 					false,
 					true
 				);
+				ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 				logger.info(
 					`Restored state for user ${ctx.chat.id}: ${previousState.text}`
 				);
 			} else {
 				logger.warn(`Empty history state for chat ${ctx.chat.id}`);
 				const userName = ctx.from?.first_name || 'Друг';
-				await sendOrEditMessage(
+				const sentMessage = await sendOrEditMessage(
 					ctx,
 					MESSAGES.start.replace('%s', userName),
 					createStartKeyboard(ctx.session.questionCount),
 					false,
 					true
 				);
+				ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 			}
 		} else {
 			ctx.session.history = [];
 			const userName = ctx.from?.first_name || 'Друг';
-			await sendOrEditMessage(
+			const sentMessage = await sendOrEditMessage(
 				ctx,
 				MESSAGES.start.replace('%s', userName),
 				createStartKeyboard(ctx.session.questionCount),
 				false,
 				true
 			);
+			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 			logger.info(
 				`History empty or single state, returned to start menu for user ${ctx.chat.id}`
 			);
@@ -182,7 +186,7 @@ bot.on('message:text', async (ctx) => {
 				answerCallbackQuery: () => {},
 			};
 
-			await sendOrEditMessage(
+			const sentMessage = await sendOrEditMessage(
 				userCtx,
 				`${MESSAGES.questionRejectedWithReason.replace(
 					'%reason',
@@ -190,8 +194,9 @@ bot.on('message:text', async (ctx) => {
 				)}\n${MESSAGES.promptReviewAfterClose}`,
 				createReviewPromptKeyboard()
 			);
+			ctx.session.lastMessageId[question.userId] = sentMessage.message_id;
 
-			const sentMessage = await ctx.api.sendMessage(
+			const adminMessage = await ctx.api.sendMessage(
 				ctx.chat.id,
 				'Вопрос отклонен, причина отправлена пользователю.',
 				{
@@ -199,7 +204,7 @@ bot.on('message:text', async (ctx) => {
 					reply_markup: createBackKeyboard(),
 				}
 			);
-			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+			ctx.session.lastMessageId[ctx.chat.id] = adminMessage.message_id;
 			ctx.session.awaitingRejectReason = false;
 			ctx.session.currentQuestionId = null;
 			logger.info(
@@ -237,7 +242,7 @@ bot.on('message:text', async (ctx) => {
 				answerCallbackQuery: () => {},
 			};
 
-			await sendOrEditMessage(
+			const sentMessage = await sendOrEditMessage(
 				userCtx,
 				`${MESSAGES.paymentRejectedWithReason.replace(
 					'%reason',
@@ -245,8 +250,9 @@ bot.on('message:text', async (ctx) => {
 				)}`,
 				createStartKeyboard(0)
 			);
+			ctx.session.lastMessageId[payment.userId] = sentMessage.message_id;
 
-			const sentMessage = await ctx.api.sendMessage(
+			const adminMessage = await ctx.api.sendMessage(
 				ctx.chat.id,
 				'Платеж отклонен, причина отправлена пользователю.',
 				{
@@ -254,7 +260,7 @@ bot.on('message:text', async (ctx) => {
 					reply_markup: createBackKeyboard(),
 				}
 			);
-			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+			ctx.session.lastMessageId[ctx.chat.id] = adminMessage.message_id;
 			ctx.session.awaitingRejectPaymentReason = false;
 			ctx.session.paymentId = null;
 			logger.info(
@@ -280,20 +286,48 @@ bot.on('message:text', async (ctx) => {
 		const answer = ctx.message.text;
 		const question = await addDialogueMessage(questionId, 'admin', answer);
 		if (question) {
+			const db = await connectDB();
+			const sessions = db.collection('sessions');
+			const userSession = await sessions.findOne({
+				key: question.userId.toString(),
+			});
+			if (!userSession) {
+				logger.error(`Session for user ${question.userId} not found`);
+				const sentMessage = await ctx.api.sendMessage(
+					ctx.chat.id,
+					'Ошибка: сессия пользователя не найдена.',
+					{
+						parse_mode: 'Markdown',
+						reply_markup: createBackKeyboard(),
+					}
+				);
+				ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+				await updateSession(ctx.from.id, {
+					lastMessageId: ctx.session.lastMessageId,
+					awaitingAnswer: false,
+				});
+				return;
+			}
+
 			const userCtx = {
 				chat: { id: question.userId },
-				session: ctx.session,
+				session: userSession.value,
 				api: ctx.api,
 				answerCallbackQuery: () => {},
 			};
 
-			await sendOrEditMessage(
+			const sentMessage = await sendOrEditMessage(
 				userCtx,
 				`Сообщение от администратора по вашему вопросу #${questionId}:\n${answer}`,
 				createUserQuestionActionKeyboard(questionId)
 			);
+			userSession.value.lastMessageId = userSession.value.lastMessageId || {};
+			userSession.value.lastMessageId[question.userId] = sentMessage.message_id;
+			await updateSession(question.userId, {
+				lastMessageId: userSession.value.lastMessageId,
+			});
 
-			const sentMessage = await ctx.api.sendMessage(
+			const adminMessage = await ctx.api.sendMessage(
 				ctx.chat.id,
 				'Сообщение отправлено пользователю.',
 				{
@@ -301,8 +335,11 @@ bot.on('message:text', async (ctx) => {
 					reply_markup: createBackKeyboard(),
 				}
 			);
-			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-			ctx.session.awaitingAnswer = false;
+			ctx.session.lastMessageId[ctx.chat.id] = adminMessage.message_id;
+			await updateSession(ctx.from.id, {
+				lastMessageId: ctx.session.lastMessageId,
+				awaitingAnswer: false,
+			});
 			logger.info(
 				`Admin answered question ${questionId} for user ${question.userId}`
 			);
@@ -316,6 +353,9 @@ bot.on('message:text', async (ctx) => {
 				}
 			);
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+			await updateSession(ctx.from.id, {
+				lastMessageId: ctx.session.lastMessageId,
+			});
 			logger.error(`Question ${questionId} not found for answering`);
 		}
 	} else if (
@@ -337,13 +377,14 @@ bot.on('message:text', async (ctx) => {
 				answerCallbackQuery: () => {},
 			};
 
-			await sendOrEditMessage(
+			const sentMessage = await sendOrEditMessage(
 				userCtx,
 				`Сообщение от администратора по вашему вопросу техподдержки #${questionId}:\n${answer}`,
 				createUserSupportQuestionActionKeyboard(questionId)
 			);
+			ctx.session.lastMessageId[question.userId] = sentMessage.message_id;
 
-			const sentMessage = await ctx.api.sendMessage(
+			const adminMessage = await ctx.api.sendMessage(
 				ctx.chat.id,
 				'Сообщение отправлено пользователю.',
 				{
@@ -351,7 +392,7 @@ bot.on('message:text', async (ctx) => {
 					reply_markup: createBackKeyboard(),
 				}
 			);
-			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+			ctx.session.lastMessageId[ctx.chat.id] = adminMessage.message_id;
 			ctx.session.awaitingSupportAnswer = false;
 			ctx.session.currentSupportQuestionId = null;
 			logger.info(

@@ -65,7 +65,7 @@ const createQuestionActionKeyboard = (questionId) => {
 
 const createUserQuestionActionKeyboard = (questionId) => {
 	return new InlineKeyboard()
-		.text('Задавать уточнения', `clarify_question_${questionId}`)
+		.text('Задать уточнения', `clarify_question_${questionId}`)
 		.text('Закрыть вопрос', `close_question_${questionId}`);
 };
 
