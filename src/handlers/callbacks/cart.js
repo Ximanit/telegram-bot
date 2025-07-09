@@ -3,7 +3,7 @@ const {
 	createCartKeyboard,
 	createBackKeyboard,
 	createStartKeyboard,
-	InlineKeyboard,
+	createConfirmClearCartKeyboard,
 } = require('../../keyboards');
 const { MESSAGES, SERVICES } = require('../../constants');
 const { sendOrEditMessage, cartUtils } = require('../utils');
@@ -41,9 +41,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 		await sendOrEditMessage(
 			ctx,
 			MESSAGES.confirmClearCart,
-			new InlineKeyboard()
-				.text('Да, очистить', 'confirm_clear_cart')
-				.text('Назад', 'back')
+			createConfirmClearCartKeyboard()
 		);
 	} else if (action === 'confirm_clear_cart') {
 		ctx.session.cart = [];

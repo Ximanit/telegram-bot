@@ -87,6 +87,12 @@ const createUserSupportQuestionActionKeyboard = (questionId) => {
 		.text('Закрыть', `close_support_question_${questionId}`);
 };
 
+const createConfirmClearCartKeyboard = () => {
+	return new InlineKeyboard()
+		.text('Да, очистить', 'confirm_clear_cart')
+		.text('Назад', 'back');
+};
+
 module.exports = {
 	createStartKeyboard,
 	createPriceKeyboard,
@@ -99,4 +105,5 @@ module.exports = {
 	createReviewPromptKeyboard,
 	createSupportQuestionActionKeyboard,
 	createUserSupportQuestionActionKeyboard,
+	createConfirmClearCartKeyboard,
 };
