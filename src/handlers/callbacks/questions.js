@@ -8,7 +8,7 @@ const {
 	updateQuestionStatus,
 	addDialogueMessage,
 } = require('../../services/questions');
-const { MESSAGES } = require('../../constants');
+const { MESSAGES, SESSION_KEYS } = require('../../constants');
 const { sendOrEditMessage } = require('../utils');
 const { updateSession } = require('../../db');
 const logger = require('../../logger');
@@ -23,8 +23,8 @@ const handleQuestionCallback = async (ctx, action) => {
 		const questionId = action.replace('answer_question_', '');
 		const question = await updateQuestionStatus(questionId, 'in_progress');
 		if (question) {
-			ctx.session.awaitingAnswer = true;
-			ctx.session.currentQuestionId = questionId;
+			ctx.session[SESSION_KEYS.AWAITING_ANSWER] = true;
+			ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = questionId;
 			await sendOrEditMessage(
 				ctx,
 				'Пожалуйста, введите ваш ответ:',
@@ -37,8 +37,8 @@ const handleQuestionCallback = async (ctx, action) => {
 		}
 	} else if (action.startsWith('reject_question_')) {
 		const questionId = action.replace('reject_question_', '');
-		ctx.session.awaitingRejectReason = true;
-		ctx.session.currentQuestionId = questionId;
+		ctx.session[SESSION_KEYS.AWAITING_REJECT_REASON] = true;
+		ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = questionId;
 		await sendOrEditMessage(
 			ctx,
 			'Пожалуйста, укажите причину отклонения:',
@@ -70,9 +70,11 @@ const handleQuestionCallback = async (ctx, action) => {
 				createReviewPromptKeyboard(),
 				false
 			);
-			ctx.session.currentQuestionId = null;
+			ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = null;
 			await updateSession(question.userId, {
-				lastMessageId: { [question.userId]: sentMessage.message_id },
+				[SESSION_KEYS.LAST_MESSAGE_ID]: {
+					[question.userId]: sentMessage.message_id,
+				},
 			});
 			await ctx.answerCallbackQuery('Вопрос закрыт');
 		} else {
@@ -80,7 +82,7 @@ const handleQuestionCallback = async (ctx, action) => {
 		}
 	} else if (action.startsWith('clarify_question_')) {
 		const questionId = action.replace('clarify_question_', '');
-		ctx.session.currentQuestionId = questionId;
+		ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = questionId;
 		await sendOrEditMessage(
 			ctx,
 			'Пожалуйста, отправьте уточнение:',

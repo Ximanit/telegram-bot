@@ -28,6 +28,8 @@ const handleCallbackQuery = async (ctx) => {
 		ctx.session[SESSION_KEYS.AWAITING_ANSWER] = false;
 		ctx.session[SESSION_KEYS.AWAITING_REJECT_REASON] = false;
 		ctx.session[SESSION_KEYS.AWAITING_REJECT_PAYMENT_REASON] = false;
+		ctx.session[SESSION_KEYS.AWAITING_SUPPORT_QUESTION] = false;
+		ctx.session[SESSION_KEYS.AWAITING_SUPPORT_ANSWER] = false;
 		ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = null;
 		ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID] = null;
 		ctx.session[SESSION_KEYS.PAYMENT_ID] = null;

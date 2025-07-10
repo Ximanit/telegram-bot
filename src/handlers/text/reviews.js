@@ -3,8 +3,9 @@ const {
 	createBackKeyboard,
 	createReviewModerationKeyboard,
 } = require('../../keyboards');
-const { MESSAGES } = require('../../constants');
+const { MESSAGES, SESSION_KEYS } = require('../../constants');
 const { addReview } = require('../../services/reviews');
+const { sendOrEditMessage } = require('../utils');
 
 const validateReview = (text) => {
 	const trimmed = text.trim();
@@ -33,8 +34,8 @@ const handleReviewText = async (ctx) => {
 			reply_markup: createReviewModerationKeyboard(review._id.toString()),
 		}
 	);
-	ctx.session.awaitingReview = false;
-	ctx.session.lastAction = null;
+	ctx.session[SESSION_KEYS.AWAITING_REVIEW] = false;
+	ctx.session[SESSION_KEYS.LAST_ACTION] = null;
 	await sendOrEditMessage(
 		ctx,
 		MESSAGES.reviewSent,

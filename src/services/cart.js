@@ -1,4 +1,4 @@
-const { MESSAGES, SERVICES } = require('../constants');
+const { MESSAGES, SERVICES, SESSION_KEYS } = require('../constants');
 const { createPriceKeyboard, createCartKeyboard } = require('../keyboards');
 const { sendOrEditMessage, cartUtils } = require('../handlers/utils');
 
@@ -10,18 +10,20 @@ const addToCart = async (ctx, serviceId) => {
 		);
 		return;
 	}
-	const cartItem = ctx.session.cart.find((item) => item.id === serviceId);
+	const cartItem = ctx.session[SESSION_KEYS.CART].find(
+		(item) => item.id === serviceId
+	);
 	if (cartItem) {
 		cartItem.quantity += 1;
 	} else {
-		ctx.session.cart.push({
+		ctx.session[SESSION_KEYS.CART].push({
 			name: service.name,
 			price: service.price,
 			id: service.id,
 			quantity: 1,
 		});
 	}
-	const { count, total } = cartUtils.summary(ctx.session.cart);
+	const { count, total } = cartUtils.summary(ctx.session[SESSION_KEYS.CART]);
 	await ctx.answerCallbackQuery(
 		MESSAGES.serviceAdded.replace('%name', service.name)
 	);
@@ -33,39 +35,45 @@ const addToCart = async (ctx, serviceId) => {
 };
 
 const increaseQuantity = async (ctx, serviceId) => {
-	const cartItem = ctx.session.cart.find((item) => item.id === serviceId);
+	const cartItem = ctx.session[SESSION_KEYS.CART].find(
+		(item) => item.id === serviceId
+	);
 	if (!cartItem) {
 		await ctx.answerCallbackQuery('Ошибка: услуга не найдена в корзине');
 		return;
 	}
 	cartItem.quantity += 1;
-	const { count, total } = cartUtils.summary(ctx.session.cart);
+	const { count, total } = cartUtils.summary(ctx.session[SESSION_KEYS.CART]);
 	await ctx.answerCallbackQuery(`Добавлено: ${cartItem.name}`);
 	await sendOrEditMessage(
 		ctx,
-		cartUtils.format(ctx.session.cart),
-		createCartKeyboard(ctx.session.cart)
+		cartUtils.format(ctx.session[SESSION_KEYS.CART]),
+		createCartKeyboard(ctx.session[SESSION_KEYS.CART])
 	);
 };
 
 const decreaseQuantity = async (ctx, serviceId) => {
-	const cartItem = ctx.session.cart.find((item) => item.id === serviceId);
+	const cartItem = ctx.session[SESSION_KEYS.CART].find(
+		(item) => item.id === serviceId
+	);
 	if (!cartItem) {
 		await ctx.answerCallbackQuery('Ошибка: услуга не найдена в корзине');
 		return;
 	}
 	cartItem.quantity -= 1;
 	if (cartItem.quantity <= 0) {
-		ctx.session.cart = ctx.session.cart.filter((item) => item.id !== serviceId);
+		ctx.session[SESSION_KEYS.CART] = ctx.session[SESSION_KEYS.CART].filter(
+			(item) => item.id !== serviceId
+		);
 	}
-	const { count, total } = cartUtils.summary(ctx.session.cart);
+	const { count, total } = cartUtils.summary(ctx.session[SESSION_KEYS.CART]);
 	await ctx.answerCallbackQuery(`Удалено: ${cartItem.name}`);
 	await sendOrEditMessage(
 		ctx,
-		ctx.session.cart.length
-			? cartUtils.format(ctx.session.cart)
+		ctx.session[SESSION_KEYS.CART].length
+			? cartUtils.format(ctx.session[SESSION_KEYS.CART])
 			: MESSAGES.cartEmpty,
-		createCartKeyboard(ctx.session.cart)
+		createCartKeyboard(ctx.session[SESSION_KEYS.CART])
 	);
 };
 

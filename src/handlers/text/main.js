@@ -57,7 +57,9 @@ const handleText = async (ctx) => {
 				createUserQuestionActionKeyboard(questionId)
 			);
 			await updateSession(question.userId, {
-				lastMessageId: { [question.userId]: sentMessage.message_id },
+				[SESSION_KEYS.LAST_MESSAGE_ID]: {
+					[question.userId]: sentMessage.message_id,
+				},
 			});
 			await sendOrEditMessage(
 				ctx,

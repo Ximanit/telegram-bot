@@ -10,6 +10,14 @@ const { handleCallbackQuery } = require('./handlers/callbacks/main');
 const { handleText } = require('./handlers/text/main');
 const { handleError } = require('./handlers/utils');
 const { SESSION_KEYS } = require('./constants');
+const {
+	savePaymentPhoto,
+	updatePaymentStatus,
+} = require('./services/payments');
+const {
+	createPaymentConfirmationKeyboard,
+	createStartKeyboard,
+} = require('./keyboards');
 
 if (!process.env.API_KEY || !process.env.ADMIN_ID) {
 	logger.error('API_KEY или ADMIN_ID не указаны в .env');
@@ -69,16 +77,6 @@ bot.command('help', handleHelp);
 bot.on('callback_query:data', handleCallbackQuery);
 bot.on('message:text', handleText);
 bot.on('message:photo', async (ctx) => {
-	const { SESSION_KEYS, MESSAGES, CALLBACK_ACTIONS } = require('./constants');
-	const {
-		savePaymentPhoto,
-		updatePaymentStatus,
-	} = require('./services/payments');
-	const {
-		createPaymentConfirmationKeyboard,
-		createStartKeyboard,
-	} = require('./keyboards');
-
 	if (
 		ctx.session[SESSION_KEYS.AWAITING_PAYMENT_PHOTO] &&
 		ctx.session[SESSION_KEYS.PAYMENT_ID]
