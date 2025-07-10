@@ -10,7 +10,7 @@ const {
 	addDialogueMessage,
 	getQuestions,
 } = require('../../services/questions');
-const { connectDB, updateSession } = require('../../db');
+const { connectDB } = require('../../db');
 const logger = require('../../logger');
 const { ObjectId } = require('mongodb');
 const { sendOrEditMessage } = require('../utils');
@@ -33,13 +33,9 @@ const handleQuestionText = async (ctx) => {
 				ctx,
 				MESSAGES.noQuestionService,
 				createBackKeyboard(ctx.session.questionCount),
-				true // Создаём новое сообщение
+				true
 			);
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-			await updateSession(ctx.from.id, {
-				lastMessageId: ctx.session.lastMessageId,
-				awaitingQuestion: false,
-			});
 			return;
 		}
 
@@ -49,12 +45,9 @@ const handleQuestionText = async (ctx) => {
 				ctx,
 				MESSAGES.questionTooShort,
 				createBackKeyboard(ctx.session.questionCount),
-				true // Создаём новое сообщение
+				true
 			);
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-			await updateSession(ctx.from.id, {
-				lastMessageId: ctx.session.lastMessageId,
-			});
 			return;
 		}
 
@@ -84,15 +77,9 @@ const handleQuestionText = async (ctx) => {
 			ctx,
 			`${MESSAGES.questionSent}\nОсталось вопросов: ${ctx.session.questionCount}`,
 			createStartKeyboard(ctx.session.questionCount),
-			true // Создаём новое сообщение
+			true
 		);
 		ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-		await updateSession(ctx.from.id, {
-			lastMessageId: ctx.session.lastMessageId,
-			questionCount: ctx.session.questionCount,
-			awaitingQuestion: false,
-			currentQuestionId: newQuestion._id.toString(),
-		});
 	} else if (
 		ctx.session.awaitingAnswer &&
 		ctx.from.id.toString() === process.env.ADMIN_ID
@@ -117,10 +104,7 @@ const handleQuestionText = async (ctx) => {
 					}
 				);
 				ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-				await updateSession(ctx.from.id, {
-					lastMessageId: ctx.session.lastMessageId,
-					awaitingAnswer: false,
-				});
+				ctx.session.awaitingAnswer = false;
 				return;
 			}
 
@@ -135,7 +119,7 @@ const handleQuestionText = async (ctx) => {
 				userCtx,
 				`Сообщение от администратора по вашему вопросу #${questionId}:\n${answer}`,
 				createUserQuestionActionKeyboard(questionId),
-				false // Редактируем последнее сообщение, если возможно
+				false
 			);
 			userSession.value.lastMessageId = userSession.value.lastMessageId || {};
 			userSession.value.lastMessageId[question.userId] = sentMessage.message_id;
@@ -152,10 +136,7 @@ const handleQuestionText = async (ctx) => {
 				}
 			);
 			ctx.session.lastMessageId[ctx.chat.id] = adminMessage.message_id;
-			await updateSession(ctx.from.id, {
-				lastMessageId: ctx.session.lastMessageId,
-				awaitingAnswer: false,
-			});
+			ctx.session.awaitingAnswer = false;
 			logger.info(
 				`Admin answered question ${questionId} for user ${question.userId}`
 			);
@@ -169,9 +150,6 @@ const handleQuestionText = async (ctx) => {
 				}
 			);
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-			await updateSession(ctx.from.id, {
-				lastMessageId: ctx.session.lastMessageId,
-			});
 			logger.error(`Question ${questionId} not found for answering`);
 		}
 	} else if (ctx.session.currentQuestionId) {
@@ -198,37 +176,27 @@ const handleQuestionText = async (ctx) => {
 				ctx,
 				MESSAGES.dialogueMessageSent,
 				createUserQuestionActionKeyboard(question._id.toString()),
-				true // Создаём новое сообщение для уточнения
+				true
 			);
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-			await updateSession(ctx.from.id, {
-				lastMessageId: ctx.session.lastMessageId,
-			});
 		} else {
 			ctx.session.currentQuestionId = null;
 			const sentMessage = await sendOrEditMessage(
 				ctx,
 				'Диалог по этому вопросу завершен или вопрос не найден.',
 				createStartKeyboard(ctx.session.questionCount),
-				true // Создаём новое сообщение
+				true
 			);
 			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-			await updateSession(ctx.from.id, {
-				lastMessageId: ctx.session.lastMessageId,
-				currentQuestionId: null,
-			});
 		}
 	} else {
 		const sentMessage = await sendOrEditMessage(
 			ctx,
 			MESSAGES.unknownMessage,
 			createStartKeyboard(ctx.session.questionCount),
-			true // Создаём новое сообщение
+			true
 		);
 		ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-		await updateSession(ctx.from.id, {
-			lastMessageId: ctx.session.lastMessageId,
-		});
 	}
 };
 
