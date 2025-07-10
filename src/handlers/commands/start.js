@@ -1,15 +1,15 @@
 const { createStartKeyboard } = require('../../keyboards');
-const { MESSAGES } = require('../../constants');
+const { MESSAGES, SESSION_KEYS } = require('../../constants');
+const { sendOrEditMessage } = require('../utils');
 
 const handleStart = async (ctx) => {
 	const userName = ctx.from?.first_name || 'Друг';
-	ctx.session.awaitingQuestion = false;
-	ctx.session.lastAction = null;
-	ctx.session.history = [];
+	ctx.session[SESSION_KEYS.AWAITING_QUESTION] = false;
+	ctx.session[SESSION_KEYS.HISTORY] = [];
 	await sendOrEditMessage(
 		ctx,
 		MESSAGES.start.replace('%s', userName),
-		createStartKeyboard(ctx.session.questionCount),
+		createStartKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT]),
 		true
 	);
 };
