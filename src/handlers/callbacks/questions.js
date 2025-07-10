@@ -25,18 +25,12 @@ const handleQuestionCallback = async (ctx, action) => {
 		if (question) {
 			ctx.session.awaitingAnswer = true;
 			ctx.session.currentQuestionId = questionId;
-			const sentMessage = await sendOrEditMessage(
+			await sendOrEditMessage(
 				ctx,
 				'Пожалуйста, введите ваш ответ:',
 				createBackKeyboard(),
-				true // Создаём новое сообщение для администратора
+				true
 			);
-			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-			await updateSession(ctx.from.id, {
-				lastMessageId: ctx.session.lastMessageId,
-				awaitingAnswer: true,
-				currentQuestionId: questionId,
-			});
 			await ctx.answerCallbackQuery();
 		} else {
 			await ctx.answerCallbackQuery('Ошибка: вопрос не найден');
@@ -45,18 +39,12 @@ const handleQuestionCallback = async (ctx, action) => {
 		const questionId = action.replace('reject_question_', '');
 		ctx.session.awaitingRejectReason = true;
 		ctx.session.currentQuestionId = questionId;
-		const sentMessage = await sendOrEditMessage(
+		await sendOrEditMessage(
 			ctx,
 			'Пожалуйста, укажите причину отклонения:',
 			createBackKeyboard(),
-			true // Создаём новое сообщение
+			true
 		);
-		ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-		await updateSession(ctx.from.id, {
-			lastMessageId: ctx.session.lastMessageId,
-			awaitingRejectReason: true,
-			currentQuestionId: questionId,
-		});
 		await ctx.answerCallbackQuery();
 	} else if (action.startsWith('close_question_')) {
 		const questionId = action.replace('close_question_', '');
@@ -66,29 +54,25 @@ const handleQuestionCallback = async (ctx, action) => {
 				ctx.from.id.toString() === process.env.ADMIN_ID
 					? 'Администратор'
 					: 'Пользователь';
-
 			const userCtx = {
 				chat: { id: question.userId },
 				session: ctx.session,
 				api: ctx.api,
 				answerCallbackQuery: () => {},
 			};
-
 			const messageText =
 				sender === 'Администратор'
 					? MESSAGES.promptReviewAfterCloseAdmin
 					: MESSAGES.promptReviewAfterClose;
-
 			const sentMessage = await sendOrEditMessage(
 				userCtx,
 				messageText,
 				createReviewPromptKeyboard(),
-				false // Редактируем последнее сообщение, если возможно
+				false
 			);
-			ctx.session.lastMessageId[question.userId] = sentMessage.message_id;
-			await updateSession(ctx.from.id, {
-				lastMessageId: ctx.session.lastMessageId,
-				currentQuestionId: null,
+			ctx.session.currentQuestionId = null;
+			await updateSession(question.userId, {
+				lastMessageId: { [question.userId]: sentMessage.message_id },
 			});
 			await ctx.answerCallbackQuery('Вопрос закрыт');
 		} else {
@@ -97,17 +81,12 @@ const handleQuestionCallback = async (ctx, action) => {
 	} else if (action.startsWith('clarify_question_')) {
 		const questionId = action.replace('clarify_question_', '');
 		ctx.session.currentQuestionId = questionId;
-		const sentMessage = await sendOrEditMessage(
+		await sendOrEditMessage(
 			ctx,
 			'Пожалуйста, отправьте уточнение:',
 			createBackKeyboard(),
-			true // Создаём новое сообщение
+			true
 		);
-		ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-		await updateSession(ctx.from.id, {
-			lastMessageId: ctx.session.lastMessageId,
-			currentQuestionId: questionId,
-		});
 		await ctx.answerCallbackQuery();
 	}
 };

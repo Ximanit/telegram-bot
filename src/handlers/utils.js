@@ -76,4 +76,8 @@ const sendOrEditMessage = async (
 	}
 };
 
-module.exports = { sendOrEditMessage };
+const sendMeow = async (ctx) => {
+	await sendOrEditMessage(ctx, MESSAGES.meow, createStartKeyboard(), true);
+};
+
+module.exports = { sendOrEditMessag, sendMeow };

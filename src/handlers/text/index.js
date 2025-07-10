@@ -3,14 +3,11 @@ const { MESSAGES } = require('../../constants');
 const { handleReviewText } = require('./reviews');
 const { handleQuestionText } = require('./questions');
 const { handleSupportQuestionText } = require('./support');
+const { sendMeow } = require('../utils');
 
 const handleText = async (ctx) => {
 	if (ctx.message.text === 'Мяу') {
-		const sentMessage = await ctx.reply(MESSAGES.meow, {
-			parse_mode: 'Markdown',
-			reply_markup: createStartKeyboard(),
-		});
-		ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+		await sendMeow(ctx);
 		return;
 	}
 

@@ -14,16 +14,15 @@ const validateReview = (text) => {
 const handleReviewText = async (ctx) => {
 	const reviewText = validateReview(ctx.message.text);
 	if (!reviewText) {
-		const sentMessage = await ctx.reply(MESSAGES.reviewTooShort, {
-			parse_mode: 'Markdown',
-			reply_markup: createBackKeyboard(),
-		});
-		ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+		await sendOrEditMessage(
+			ctx,
+			MESSAGES.reviewTooShort,
+			createBackKeyboard(),
+			true
+		);
 		return;
 	}
-
 	const review = await addReview(ctx.from.id, ctx.from.username, reviewText);
-
 	await ctx.api.sendMessage(
 		process.env.ADMIN_ID,
 		MESSAGES.reviewReceived
@@ -34,14 +33,14 @@ const handleReviewText = async (ctx) => {
 			reply_markup: createReviewModerationKeyboard(review._id.toString()),
 		}
 	);
-
 	ctx.session.awaitingReview = false;
 	ctx.session.lastAction = null;
-	const sentMessage = await ctx.reply(MESSAGES.reviewSent, {
-		parse_mode: 'Markdown',
-		reply_markup: createStartKeyboard(),
-	});
-	ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+	await sendOrEditMessage(
+		ctx,
+		MESSAGES.reviewSent,
+		createStartKeyboard(),
+		true
+	);
 };
 
 module.exports = { handleReviewText };

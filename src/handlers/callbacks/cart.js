@@ -79,8 +79,6 @@ const handleCartCallback = async (ctx, action, userName) => {
 		const payment = await updatePaymentStatus(paymentId, 'confirmed');
 		if (payment) {
 			const questionCount = payment.questionCount;
-
-			// Получение и обновление сессии пользователя
 			const db = await connectDB();
 			const sessions = db.collection('sessions');
 			const userSession = await sessions.findOne({
@@ -96,8 +94,6 @@ const handleCartCallback = async (ctx, action, userName) => {
 				await ctx.answerCallbackQuery('Ошибка: сессия пользователя не найдена');
 				return;
 			}
-
-			// Обновление данных сессии пользователя
 			const updatedSessionData = {
 				paidServices: payment.cart.flatMap((item) =>
 					Array(item.quantity).fill({
@@ -111,24 +107,14 @@ const handleCartCallback = async (ctx, action, userName) => {
 				awaitingQuestion: questionCount > 0,
 				cart: [],
 			};
-
-			await sessions.updateOne(
-				{ key: payment.userId.toString() },
-				{ $set: { value: { ...userSession.value, ...updatedSessionData } } }
-			);
-			logger.info(
-				`Updated session for user ${payment.userId} with questionCount: ${questionCount}`
-			);
-
-			// Отправка уведомления пользователю
+			await updateSession(payment.userId, updatedSessionData);
 			const userCtx = {
 				chat: { id: payment.userId },
 				session: { ...userSession.value, ...updatedSessionData },
 				api: ctx.api,
 				answerCallbackQuery: () => {},
 			};
-
-			await sendOrEditMessage(
+			const sentMessage = await sendOrEditMessage(
 				userCtx,
 				`${MESSAGES.paymentConfirmed}\n${MESSAGES.paymentTotal.replace(
 					'%total',
@@ -136,8 +122,9 @@ const handleCartCallback = async (ctx, action, userName) => {
 				)}\nУ вас доступно вопросов: ${questionCount}`,
 				createStartKeyboard(questionCount)
 			);
-
-			// Уведомление администратору
+			await updateSession(payment.userId, {
+				lastMessageId: { [payment.userId]: sentMessage.message_id },
+			});
 			await sendOrEditMessage(
 				ctx,
 				'Платеж подтвержден',

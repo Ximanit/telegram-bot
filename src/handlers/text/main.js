@@ -22,62 +22,61 @@ const handleText = async (ctx) => {
 	);
 
 	if (
-		ctx.session[SESSION_KEYS.AWAITING_REJECT_REASON] &&
+		ctx.session[SESSION_KEYS.AWAITING_ANSWER] &&
 		ctx.from.id.toString() === process.env.ADMIN_ID
 	) {
 		const questionId = ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID];
-		const rejectReason = ctx.message.text;
-		const question = await updateQuestionStatus(
-			questionId,
-			'rejected',
-			rejectReason
-		);
+		const answer = ctx.message.text;
+		const question = await addDialogueMessage(questionId, 'admin', answer);
 		if (question) {
+			const db = await connectDB();
+			const sessions = db.collection('sessions');
+			const userSession = await sessions.findOne({
+				key: question.userId.toString(),
+			});
+			if (!userSession) {
+				logger.error(`Session for user ${question.userId} not found`);
+				await sendOrEditMessage(
+					ctx,
+					'Ошибка: сессия пользователя не найдена.',
+					createBackKeyboard(),
+					true
+				);
+				ctx.session[SESSION_KEYS.AWAITING_ANSWER] = false;
+				return;
+			}
 			const userCtx = {
 				chat: { id: question.userId },
-				session: ctx.session,
+				session: userSession.value,
 				api: ctx.api,
 				answerCallbackQuery: () => {},
 			};
-
 			const sentMessage = await sendOrEditMessage(
 				userCtx,
-				`${MESSAGES.questionRejectedWithReason.replace(
-					'%reason',
-					rejectReason
-				)}\n${MESSAGES.promptReviewAfterClose}`,
-				createReviewPromptKeyboard()
+				`Сообщение от администратора по вашему вопросу #${questionId}:\n${answer}`,
+				createUserQuestionActionKeyboard(questionId)
 			);
-			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][question.userId] =
-				sentMessage.message_id;
-
-			const adminMessage = await ctx.api.sendMessage(
-				ctx.chat.id,
-				'Вопрос отклонен, причина отправлена пользователю.',
-				{
-					parse_mode: 'Markdown',
-					reply_markup: createBackKeyboard(),
-				}
+			await updateSession(question.userId, {
+				lastMessageId: { [question.userId]: sentMessage.message_id },
+			});
+			await sendOrEditMessage(
+				ctx,
+				'Сообщение отправлено пользователю.',
+				createBackKeyboard(),
+				true
 			);
-			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
-				adminMessage.message_id;
-			ctx.session[SESSION_KEYS.AWAITING_REJECT_REASON] = false;
-			ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = null;
+			ctx.session[SESSION_KEYS.AWAITING_ANSWER] = false;
 			logger.info(
-				`Question ${questionId} rejected by admin for user ${question.userId}`
+				`Admin answered question ${questionId} for user ${question.userId}`
 			);
 		} else {
-			const sentMessage = await ctx.api.sendMessage(
-				ctx.chat.id,
+			await sendOrEditMessage(
+				ctx,
 				'Ошибка: вопрос не найден.',
-				{
-					parse_mode: 'Markdown',
-					reply_markup: createBackKeyboard(),
-				}
+				createBackKeyboard(),
+				true
 			);
-			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
-				sentMessage.message_id;
-			logger.error(`Question ${questionId} not found for rejection`);
+			logger.error(`Question ${questionId} not found for answering`);
 		}
 	} else if (
 		ctx.session[SESSION_KEYS.AWAITING_REJECT_PAYMENT_REASON] &&
