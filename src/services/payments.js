@@ -1,29 +1,16 @@
-const fs = require('fs').promises;
-const path = require('path');
-const axios = require('axios');
 const { connectDB } = require('../db');
-const { ObjectId } = require('mongodb');
+const { ObjectId, GridFSBucket } = require('mongodb');
+const axios = require('axios');
 const logger = require('../logger');
-
-const PAYMENTS_PHOTOS_DIR = path.join(__dirname, '../data/payments_photos');
-
-async function initPaymentsPhotosDir() {
-	try {
-		await fs.access(PAYMENTS_PHOTOS_DIR);
-	} catch {
-		await fs.mkdir(PAYMENTS_PHOTOS_DIR, { recursive: true });
-		logger.info('Created payments_photos directory');
-	}
-}
 
 async function getPayments() {
 	try {
 		const db = await connectDB();
 		const payments = await db.collection('payments').find({}).toArray();
-		logger.info(`Fetched ${payments.length} payments from MongoDB`);
+		logger.info('Fetched payments', { count: payments.length });
 		return payments;
 	} catch (error) {
-		logger.error('Ошибка чтения платежей из MongoDB:', {
+		logger.error('Ошибка чтения платежей из MongoDB', {
 			error: error.message,
 			stack: error.stack,
 		});
@@ -40,7 +27,7 @@ async function addPayment(userId, username, cart, total) {
 			cart,
 			total,
 			status: 'pending',
-			photo: null,
+			photoFileId: null,
 			rejectReason: null,
 			timestamp: new Date().toISOString(),
 			questionCount: cart.reduce(
@@ -50,14 +37,17 @@ async function addPayment(userId, username, cart, total) {
 			),
 		};
 		const result = await db.collection('payments').insertOne(newPayment);
-		logger.info(
-			`Added payment by user ${userId}, total: ${total}, _id: ${result.insertedId}`
-		);
+		logger.info('Added payment', {
+			userId,
+			total,
+			paymentId: result.insertedId,
+		});
 		return { ...newPayment, _id: result.insertedId };
 	} catch (error) {
-		logger.error('Ошибка добавления платежа в MongoDB:', {
+		logger.error('Ошибка добавления платежа в MongoDB', {
 			error: error.message,
 			stack: error.stack,
+			userId,
 		});
 		throw error;
 	}
@@ -66,72 +56,78 @@ async function addPayment(userId, username, cart, total) {
 async function updatePaymentStatus(
 	_id,
 	status,
-	photo = null,
+	photoFileId = null,
 	rejectReason = null
 ) {
 	try {
 		const db = await connectDB();
 		const collection = db.collection('payments');
-
-		// Преобразуем _id в ObjectId, если это строка
 		const paymentId = typeof _id === 'string' ? new ObjectId(_id) : _id;
-		logger.info(
-			`Updating payment with _id: ${paymentId}, type: ${typeof paymentId}`
-		);
 
-		// Поиск платежа
 		const payment = await collection.findOne({ _id: paymentId });
 		if (!payment) {
-			logger.warn(`Payment with _id ${paymentId} not found`);
+			logger.warn('Payment not found', { paymentId });
 			return null;
 		}
 
-		// Подготовка полей для обновления
 		const updateFields = { status };
-		if (photo) updateFields.photo = photo;
+		if (photoFileId) updateFields.photoFileId = photoFileId;
 		if (rejectReason) updateFields.rejectReason = rejectReason;
 
-		// Обновление платежа
 		const result = await collection.updateOne(
 			{ _id: paymentId },
 			{ $set: updateFields }
 		);
 
 		if (result.matchedCount === 0) {
-			logger.warn(`Payment with _id ${paymentId} not found during update`);
+			logger.warn('Payment not found during update', { paymentId });
 			return null;
 		}
 
-		// Получение обновленного документа
 		const updatedPayment = await collection.findOne({ _id: paymentId });
-		logger.info(`Payment ${paymentId} updated, status: ${status}`);
+		logger.info('Payment updated', { paymentId, status });
 		return updatedPayment;
 	} catch (error) {
-		logger.error('Ошибка обновления статуса платежа в MongoDB:', {
+		logger.error('Ошибка обновления статуса платежа в MongoDB', {
 			error: error.message,
 			stack: error.stack,
+			paymentId: _id,
 		});
 		throw error;
 	}
 }
 
-async function savePaymentPhoto(fileId, paymentId, bot) {
+async function savePaymentPhoto(fileId, paymentId, ctx) {
 	try {
-		await initPaymentsPhotosDir();
-		const file = await bot.api.getFile(fileId);
+		const db = await connectDB();
+		const bucket = new GridFSBucket(db, { bucketName: 'payment_photos' });
+
+		const file = await ctx.api.getFile(fileId);
 		const fileUrl = `https://api.telegram.org/file/bot${process.env.API_KEY}/${file.file_path}`;
-		const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
-		const photoPath = path.join(
-			PAYMENTS_PHOTOS_DIR,
-			`payment_${paymentId}_${Date.now()}.jpg`
+		const response = await axios.get(fileUrl, { responseType: 'stream' });
+
+		const stream = bucket.openUploadStream(
+			`payment_${paymentId}_${Date.now()}.jpg`,
+			{
+				metadata: { paymentId, userId: ctx.from.id },
+			}
 		);
-		await fs.writeFile(photoPath, response.data);
-		logger.info(`Saved payment photo for payment ${paymentId}`);
-		return photoPath;
+
+		await new Promise((resolve, reject) => {
+			response.data.pipe(stream).on('finish', resolve).on('error', reject);
+		});
+
+		logger.info('Saved payment photo to GridFS', {
+			paymentId,
+			fileId: stream.id,
+		});
+		return stream.id.toString();
 	} catch (error) {
-		logger.error('Ошибка сохранения фото платежа:', {
+		logger.error('Ошибка сохранения фото платежа', {
 			error: error.message,
 			stack: error.stack,
+			paymentId,
+			userId: ctx.from.id,
 		});
 		throw error;
 	}

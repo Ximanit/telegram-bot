@@ -19,8 +19,14 @@ const {
 	createStartKeyboard,
 } = require('./keyboards');
 
-if (!process.env.API_KEY || !process.env.ADMIN_ID) {
-	logger.error('API_KEY или ADMIN_ID не указаны в .env');
+if (
+	!process.env.API_KEY ||
+	!process.env.ADMIN_ID ||
+	!process.env.CARD_DETAILS
+) {
+	logger.error('API_KEY, ADMIN_ID или CARD_DETAILS не указаны в .env', {
+		env: process.env,
+	});
 	process.exit(1);
 }
 
@@ -59,7 +65,7 @@ const composer = new Composer();
 		);
 		logger.info('Сессии настроены с MongoDB');
 	} catch (error) {
-		logger.error('Ошибка при инициализации MongoDB:', {
+		logger.error('Ошибка при инициализации MongoDB', {
 			error: error.message,
 			stack: error.stack,
 		});
@@ -81,61 +87,74 @@ bot.on('message:photo', async (ctx) => {
 		ctx.session[SESSION_KEYS.AWAITING_PAYMENT_PHOTO] &&
 		ctx.session[SESSION_KEYS.PAYMENT_ID]
 	) {
-		const photo = ctx.message.photo[ctx.message.photo.length - 1];
-		const photoPath = await savePaymentPhoto(
-			photo.file_id,
-			ctx.session[SESSION_KEYS.PAYMENT_ID],
-			ctx
-		);
-		await updatePaymentStatus(
-			ctx.session[SESSION_KEYS.PAYMENT_ID],
-			'pending',
-			photoPath
-		);
-		await ctx.api.sendPhoto(process.env.ADMIN_ID, photo.file_id, {
-			caption: `Новый платеж от @${
-				ctx.from.username || `ID ${ctx.from.id}`
-			}\nСумма: ${ctx.session[SESSION_KEYS.CART].reduce(
-				(sum, item) => sum + item.price * item.quantity,
-				0
-			)} руб.`,
-			reply_markup: createPaymentConfirmationKeyboard(
-				ctx.session[SESSION_KEYS.PAYMENT_ID]
-			),
-		});
-		ctx.session[SESSION_KEYS.AWAITING_PAYMENT_PHOTO] = false;
-		ctx.session[SESSION_KEYS.PAYMENT_ID] = null;
-		const sentMessage = await ctx.api.sendMessage(
-			ctx.chat.id,
-			'Фото чека отправлено на проверку администратору.',
-			{
-				parse_mode: 'Markdown',
-				reply_markup: createStartKeyboard(
-					ctx.session[SESSION_KEYS.QUESTION_COUNT]
+		try {
+			const photo = ctx.message.photo[ctx.message.photo.length - 1];
+			const photoFileId = await savePaymentPhoto(
+				photo.file_id,
+				ctx.session[SESSION_KEYS.PAYMENT_ID],
+				ctx
+			);
+			await updatePaymentStatus(
+				ctx.session[SESSION_KEYS.PAYMENT_ID],
+				'pending',
+				photoFileId
+			);
+			await ctx.api.sendPhoto(process.env.ADMIN_ID, photo.file_id, {
+				caption: `Новый платеж от @${
+					ctx.from.username || `ID ${ctx.from.id}`
+				}\nСумма: ${ctx.session[SESSION_KEYS.CART].reduce(
+					(sum, item) => sum + item.price * item.quantity,
+					0
+				)} руб.`,
+				reply_markup: createPaymentConfirmationKeyboard(
+					ctx.session[SESSION_KEYS.PAYMENT_ID]
 				),
-			}
-		);
-		ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
-			sentMessage.message_id;
-		logger.info(
-			`Payment photo uploaded for payment ${
-				ctx.session[SESSION_KEYS.PAYMENT_ID]
-			} by user ${ctx.from.id}`
-		);
+			});
+			ctx.session[SESSION_KEYS.AWAITING_PAYMENT_PHOTO] = false;
+			ctx.session[SESSION_KEYS.PAYMENT_ID] = null;
+			const sentMessage = await ctx.api.sendMessage(
+				ctx.chat.id,
+				'Фото чека отправлено на проверку администратору.',
+				{
+					parse_mode: 'Markdown',
+					reply_markup: createStartKeyboard(
+						ctx.session[SESSION_KEYS.QUESTION_COUNT]
+					),
+				}
+			);
+			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
+				sentMessage.message_id;
+			logger.info('Payment photo uploaded', {
+				paymentId: ctx.session[SESSION_KEYS.PAYMENT_ID],
+				userId: ctx.from.id,
+				chatId: ctx.chat.id,
+			});
+		} catch (error) {
+			logger.error('Ошибка обработки фото платежа', {
+				error: error.message,
+				stack: error.stack,
+				userId: ctx.from.id,
+				chatId: ctx.chat.id,
+			});
+			await handleError(error, ctx);
+		}
 	}
 });
 
 bot.catch((err, ctx) => {
-	logger.error(
-		`Error for update ${ctx?.update?.update_id ?? 'unknown'}: ${err.message}`,
-		{ stack: err.stack }
-	);
+	logger.error('Ошибка бота', {
+		updateId: ctx?.update?.update_id ?? 'unknown',
+		error: err.message,
+		stack: err.stack,
+		userId: ctx?.from?.id,
+		chatId: ctx?.chat?.id,
+	});
 	handleError(err, ctx);
 });
 
 // Запуск бота
 bot.start().catch((err) => {
-	logger.error('Ошибка при запуске бота:', {
+	logger.error('Ошибка при запуске бота', {
 		error: err.message,
 		stack: err.stack,
 	});

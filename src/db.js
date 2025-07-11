@@ -14,10 +14,13 @@ async function connectDB() {
 		client = new MongoClient(uri);
 		await client.connect();
 		db = client.db(dbName);
-		console.log('Подключение к MongoDB установлено');
+		logger.info('Подключение к MongoDB установлено');
 		return db;
 	} catch (error) {
-		console.error('Ошибка подключения к MongoDB:', error);
+		logger.error('Ошибка подключения к MongoDB', {
+			error: error.message,
+			stack: error.stack,
+		});
 		throw error;
 	}
 }
@@ -26,7 +29,7 @@ async function closeDB() {
 	if (client) {
 		await client.close();
 		db = null;
-		console.log('Подключение к MongoDB закрыто');
+		logger.info('Подключение к MongoDB закрыто');
 	}
 }
 
@@ -46,18 +49,17 @@ async function updateSession(userId, updates) {
 					{ $set: { value: { ...currentSession.value, ...updates } } },
 					{ session }
 				);
-				logger.info(`Session updated for user ${userId}`);
+				logger.info('Session updated', { userId });
 			} else {
-				logger.warn(`Session for user ${userId} not found`);
+				logger.warn('Session not found', { userId });
 			}
 		});
 	} catch (error) {
-		logger.error(
-			`Error updating session for user ${userId}: ${error.message}`,
-			{
-				stack: error.stack,
-			}
-		);
+		logger.error('Ошибка обновления сессии', {
+			userId,
+			error: error.message,
+			stack: error.stack,
+		});
 		throw error;
 	} finally {
 		await session.endSession();

@@ -13,7 +13,7 @@ const {
 	decreaseQuantity,
 } = require('../../services/cart');
 const { addPayment, updatePaymentStatus } = require('../../services/payments');
-const { connectDB } = require('../../db');
+const { connectDB, updateSession } = require('../../db');
 const logger = require('../../logger');
 
 const handleCartCallback = async (ctx, action, userName) => {
