@@ -7,7 +7,7 @@ const {
 	updateSupportQuestionStatus,
 	addSupportDialogueMessage,
 } = require('../../services/support');
-const { MESSAGES } = require('../../constants');
+const { MESSAGES, SESSION_KEYS } = require('../../constants');
 const { sendOrEditMessage } = require('../utils');
 
 const handleSupportQuestionCallback = async (ctx, action) => {
@@ -18,8 +18,8 @@ const handleSupportQuestionCallback = async (ctx, action) => {
 			'in_progress'
 		);
 		if (question) {
-			ctx.session.awaitingSupportAnswer = true;
-			ctx.session.currentSupportQuestionId = questionId;
+			ctx.session[SESSION_KEYS.AWAITING_SUPPORT_ANSWER] = true;
+			ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID] = questionId;
 			await sendOrEditMessage(
 				ctx,
 				'Пожалуйста, введите ваш ответ:',
@@ -53,17 +53,17 @@ const handleSupportQuestionCallback = async (ctx, action) => {
 			await sendOrEditMessage(
 				userCtx,
 				messageText,
-				createStartKeyboard(ctx.session.questionCount)
+				createStartKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
 			);
 
-			ctx.session.currentSupportQuestionId = null;
+			ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID] = null;
 			await ctx.answerCallbackQuery('Вопрос техподдержки закрыт');
 		} else {
 			await ctx.answerCallbackQuery('Ошибка: вопрос техподдержки не найден');
 		}
 	} else if (action.startsWith('clarify_support_question_')) {
 		const questionId = action.replace('clarify_support_question_', '');
-		ctx.session.currentSupportQuestionId = questionId;
+		ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID] = questionId;
 		await sendOrEditMessage(
 			ctx,
 			'Пожалуйста, отправьте уточнение:',

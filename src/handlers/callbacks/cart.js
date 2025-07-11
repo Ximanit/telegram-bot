@@ -5,7 +5,7 @@ const {
 	createStartKeyboard,
 	createConfirmClearCartKeyboard,
 } = require('../../keyboards');
-const { MESSAGES, SERVICES } = require('../../constants');
+const { MESSAGES, SERVICES, SESSION_KEYS } = require('../../constants');
 const { sendOrEditMessage, cartUtils } = require('../utils');
 const {
 	addToCart,
@@ -13,7 +13,7 @@ const {
 	decreaseQuantity,
 } = require('../../services/cart');
 const { addPayment, updatePaymentStatus } = require('../../services/payments');
-const { connectDB } = require('../../db');
+const { connectDB, updateSession } = require('../../db');
 const logger = require('../../logger');
 
 const handleCartCallback = async (ctx, action, userName) => {
@@ -29,12 +29,12 @@ const handleCartCallback = async (ctx, action, userName) => {
 	} else if (action === 'view_cart') {
 		await sendOrEditMessage(
 			ctx,
-			cartUtils.format(ctx.session.cart),
-			createCartKeyboard(ctx.session.cart)
+			cartUtils.format(ctx.session[SESSION_KEYS.CART]),
+			createCartKeyboard(ctx.session[SESSION_KEYS.CART])
 		);
 		await ctx.answerCallbackQuery();
 	} else if (action === 'clear_cart') {
-		if (!ctx.session.cart.length) {
+		if (!ctx.session[SESSION_KEYS.CART].length) {
 			await ctx.answerCallbackQuery(MESSAGES.cartEmptyWarning);
 			return;
 		}
@@ -44,34 +44,34 @@ const handleCartCallback = async (ctx, action, userName) => {
 			createConfirmClearCartKeyboard()
 		);
 	} else if (action === 'confirm_clear_cart') {
-		ctx.session.cart = [];
+		ctx.session[SESSION_KEYS.CART] = [];
 		await ctx.answerCallbackQuery(MESSAGES.cartCleared);
 		await sendOrEditMessage(
 			ctx,
 			MESSAGES.cartEmpty,
-			createCartKeyboard(ctx.session.cart)
+			createCartKeyboard(ctx.session[SESSION_KEYS.CART])
 		);
 	} else if (action === 'pay_cart') {
-		if (!ctx.session.cart.length) {
+		if (!ctx.session[SESSION_KEYS.CART].length) {
 			await ctx.answerCallbackQuery(MESSAGES.cartEmptyWarning);
 			return;
 		}
-		const { total } = cartUtils.summary(ctx.session.cart);
+		const { total } = cartUtils.summary(ctx.session[SESSION_KEYS.CART]);
 		const payment = await addPayment(
 			ctx.from.id,
 			ctx.from.username,
-			ctx.session.cart,
+			ctx.session[SESSION_KEYS.CART],
 			total
 		);
-		ctx.session.paymentId = payment._id.toString();
-		ctx.session.awaitingPaymentPhoto = true;
+		ctx.session[SESSION_KEYS.PAYMENT_ID] = payment._id.toString();
+		ctx.session[SESSION_KEYS.AWAITING_PAYMENT_PHOTO] = true;
 		await sendOrEditMessage(
 			ctx,
 			`Пожалуйста, оплатите ${total} руб. по следующим реквизитам:\n\n` +
 				`Карта: 1234 5678 9012 3456\n` +
 				`Получатель: Имя Фамилия\n\n` +
 				`После оплаты загрузите фото чека.`,
-			createBackKeyboard(ctx.session.questionCount)
+			createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
 		);
 		await ctx.answerCallbackQuery();
 	} else if (action.startsWith('confirm_payment_')) {
@@ -79,8 +79,6 @@ const handleCartCallback = async (ctx, action, userName) => {
 		const payment = await updatePaymentStatus(paymentId, 'confirmed');
 		if (payment) {
 			const questionCount = payment.questionCount;
-
-			// Получение и обновление сессии пользователя
 			const db = await connectDB();
 			const sessions = db.collection('sessions');
 			const userSession = await sessions.findOne({
@@ -91,13 +89,11 @@ const handleCartCallback = async (ctx, action, userName) => {
 				await sendOrEditMessage(
 					ctx,
 					'Ошибка: сессия пользователя не найдена.',
-					createBackKeyboard(ctx.session.questionCount)
+					createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
 				);
 				await ctx.answerCallbackQuery('Ошибка: сессия пользователя не найдена');
 				return;
 			}
-
-			// Обновление данных сессии пользователя
 			const updatedSessionData = {
 				paidServices: payment.cart.flatMap((item) =>
 					Array(item.quantity).fill({
@@ -111,24 +107,14 @@ const handleCartCallback = async (ctx, action, userName) => {
 				awaitingQuestion: questionCount > 0,
 				cart: [],
 			};
-
-			await sessions.updateOne(
-				{ key: payment.userId.toString() },
-				{ $set: { value: { ...userSession.value, ...updatedSessionData } } }
-			);
-			logger.info(
-				`Updated session for user ${payment.userId} with questionCount: ${questionCount}`
-			);
-
-			// Отправка уведомления пользователю
+			await updateSession(payment.userId, updatedSessionData);
 			const userCtx = {
 				chat: { id: payment.userId },
 				session: { ...userSession.value, ...updatedSessionData },
 				api: ctx.api,
 				answerCallbackQuery: () => {},
 			};
-
-			await sendOrEditMessage(
+			const sentMessage = await sendOrEditMessage(
 				userCtx,
 				`${MESSAGES.paymentConfirmed}\n${MESSAGES.paymentTotal.replace(
 					'%total',
@@ -136,19 +122,20 @@ const handleCartCallback = async (ctx, action, userName) => {
 				)}\nУ вас доступно вопросов: ${questionCount}`,
 				createStartKeyboard(questionCount)
 			);
-
-			// Уведомление администратору
+			await updateSession(payment.userId, {
+				lastMessageId: { [payment.userId]: sentMessage.message_id },
+			});
 			await sendOrEditMessage(
 				ctx,
 				'Платеж подтвержден',
-				createBackKeyboard(ctx.session.questionCount)
+				createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
 			);
 			await ctx.answerCallbackQuery('Платеж подтвержден');
 		} else {
 			await sendOrEditMessage(
 				ctx,
 				'Ошибка: платеж не найден.',
-				createBackKeyboard(ctx.session.questionCount)
+				createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
 			);
 			await ctx.answerCallbackQuery('Ошибка: платеж не найден');
 		}
@@ -159,13 +146,13 @@ const handleCartCallback = async (ctx, action, userName) => {
 			await sendOrEditMessage(
 				ctx,
 				'Ошибка: платеж не найден.',
-				createBackKeyboard(ctx.session.questionCount)
+				createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
 			);
 			await ctx.answerCallbackQuery('Ошибка: платеж не найден');
 			return;
 		}
-		ctx.session.awaitingRejectPaymentReason = true;
-		ctx.session.paymentId = paymentId;
+		ctx.session[SESSION_KEYS.AWAITING_REJECT_PAYMENT_REASON] = true;
+		ctx.session[SESSION_KEYS.PAYMENT_ID] = paymentId;
 		await sendOrEditMessage(
 			ctx,
 			MESSAGES.rejectPaymentReasonPrompt,

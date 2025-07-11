@@ -1,4 +1,4 @@
-const { MESSAGES } = require('../../constants');
+const { MESSAGES, SESSION_KEYS } = require('../../constants');
 const { sendOrEditMessage } = require('../utils');
 const { createPriceKeyboard, createBackKeyboard } = require('../../keyboards');
 
@@ -7,7 +7,7 @@ const handleNavigationCallback = async (ctx, action) => {
 		await sendOrEditMessage(
 			ctx,
 			MESSAGES.terms,
-			createBackKeyboard(ctx.session.questionCount)
+			createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
 		);
 		await ctx.answerCallbackQuery();
 	} else if (action === 'show_price') {
@@ -17,7 +17,7 @@ const handleNavigationCallback = async (ctx, action) => {
 		await sendOrEditMessage(
 			ctx,
 			MESSAGES.start.replace('%s', ctx.from?.first_name || 'Друг'),
-			createStartKeyboard
+			createStartKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
 		);
 	} else {
 		await ctx.answerCallbackQuery(`Неизвестное действие: ${action}`);

@@ -1,4 +1,28 @@
 const logger = require('../logger');
+const { SESSION_KEYS, MESSAGES } = require('../constants');
+
+const handleError = async (err, ctx) => {
+	const updateId = ctx?.update?.update_id ?? 'unknown';
+	console.error(`Error for update ${updateId}:`, err);
+	if (ctx?.chat) {
+		try {
+			const sentMessage = await ctx.api.sendMessage(
+				ctx.chat.id,
+				MESSAGES.error,
+				{
+					parse_mode: 'Markdown',
+					reply_markup: createStartKeyboard(ctx.session.questionCount),
+				}
+			);
+			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+			if (ctx.callbackQuery) {
+				await ctx.answerCallbackQuery({ text: MESSAGES.errorCallback });
+			}
+		} catch (replyError) {
+			console.error('Ошибка при отправке сообщения об ошибке:', replyError);
+		}
+	}
+};
 
 const sendOrEditMessage = async (
 	ctx,
@@ -9,7 +33,7 @@ const sendOrEditMessage = async (
 ) => {
 	try {
 		const chatId = ctx.chat.id;
-		const lastMessageId = ctx.session.lastMessageId?.[chatId];
+		const lastMessageId = ctx.session[SESSION_KEYS.LAST_MESSAGE_ID]?.[chatId];
 		logger.info(
 			`Attempting to send/edit message for chat ${chatId}, lastMessageId: ${lastMessageId}, forceNew: ${forceNew}`
 		);
@@ -35,8 +59,10 @@ const sendOrEditMessage = async (
 					parse_mode: 'Markdown',
 					reply_markup: keyboard,
 				});
-				ctx.session.lastMessageId = ctx.session.lastMessageId || {};
-				ctx.session.lastMessageId[chatId] = sentMessage.message_id;
+				ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] =
+					ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] || {};
+				ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][chatId] =
+					sentMessage.message_id;
 				logger.info(
 					`Sent new message ${sentMessage.message_id} in chat ${chatId} due to edit failure`
 				);
@@ -46,8 +72,10 @@ const sendOrEditMessage = async (
 				parse_mode: 'Markdown',
 				reply_markup: keyboard,
 			});
-			ctx.session.lastMessageId = ctx.session.lastMessageId || {};
-			ctx.session.lastMessageId[chatId] = sentMessage.message_id;
+			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] =
+				ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] || {};
+			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][chatId] =
+				sentMessage.message_id;
 			logger.info(
 				`Sent new message ${sentMessage.message_id} in chat ${chatId}${
 					forceNew ? ' (forced new)' : ''
@@ -56,11 +84,12 @@ const sendOrEditMessage = async (
 		}
 
 		if (!skipHistory) {
-			ctx.session.history = ctx.session.history || [];
-			ctx.session.history.push({ text, keyboard });
+			ctx.session[SESSION_KEYS.HISTORY] =
+				ctx.session[SESSION_KEYS.HISTORY] || [];
+			ctx.session[SESSION_KEYS.HISTORY].push({ text, keyboard });
 			logger.info(
 				`Updated history for chat ${chatId}: ${JSON.stringify(
-					ctx.session.history
+					ctx.session[SESSION_KEYS.HISTORY]
 				)}`
 			);
 		}
@@ -76,4 +105,28 @@ const sendOrEditMessage = async (
 	}
 };
 
-module.exports = { sendOrEditMessage };
+const sendMeow = async (ctx) => {
+	await sendOrEditMessage(ctx, MESSAGES.meow, createStartKeyboard(), true);
+};
+
+const cartUtils = {
+	summary: (cart) => ({
+		count: cart.reduce((sum, item) => sum + item.quantity, 0),
+		total: cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
+	}),
+	format: (cart) => {
+		if (!cart.length) return MESSAGES.cartEmpty;
+		const items = cart
+			.map(
+				(item, i) =>
+					`${i + 1}. ${item.name} — ${item.price} руб. (x${item.quantity})`
+			)
+			.join('\n');
+		const { total } = cartUtils.summary(cart);
+		return MESSAGES.cartContent
+			.replace('%items', items)
+			.replace('%total', total);
+	},
+};
+
+module.exports = { sendOrEditMessage, sendMeow, handleError, cartUtils };

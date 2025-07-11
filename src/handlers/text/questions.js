@@ -4,13 +4,13 @@ const {
 	createQuestionActionKeyboard,
 	createUserQuestionActionKeyboard,
 } = require('../../keyboards');
-const { MESSAGES } = require('../../constants');
+const { MESSAGES, SESSION_KEYS } = require('../../constants');
 const {
 	addQuestion,
 	addDialogueMessage,
 	getQuestions,
 } = require('../../services/questions');
-const { connectDB, updateSession } = require('../../db');
+const { connectDB } = require('../../db');
 const logger = require('../../logger');
 const { ObjectId } = require('mongodb');
 const { sendOrEditMessage } = require('../utils');
@@ -26,20 +26,17 @@ const handleQuestionText = async (ctx) => {
 			ctx.session
 		)}`
 	);
-	if (ctx.session.awaitingQuestion) {
-		if (ctx.session.questionCount <= 0) {
-			ctx.session.awaitingQuestion = false;
+	if (ctx.session[SESSION_KEYS.AWAITING_QUESTION]) {
+		if (ctx.session[SESSION_KEYS.QUESTION_COUNT] <= 0) {
+			ctx.session[SESSION_KEYS.AWAITING_QUESTION] = false;
 			const sentMessage = await sendOrEditMessage(
 				ctx,
 				MESSAGES.noQuestionService,
-				createBackKeyboard(ctx.session.questionCount),
-				true // Создаём новое сообщение
+				createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT]),
+				true
 			);
-			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-			await updateSession(ctx.from.id, {
-				lastMessageId: ctx.session.lastMessageId,
-				awaitingQuestion: false,
-			});
+			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
+				sentMessage.message_id;
 			return;
 		}
 
@@ -48,13 +45,11 @@ const handleQuestionText = async (ctx) => {
 			const sentMessage = await sendOrEditMessage(
 				ctx,
 				MESSAGES.questionTooShort,
-				createBackKeyboard(ctx.session.questionCount),
-				true // Создаём новое сообщение
+				createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT]),
+				true
 			);
-			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-			await updateSession(ctx.from.id, {
-				lastMessageId: ctx.session.lastMessageId,
-			});
+			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
+				sentMessage.message_id;
 			return;
 		}
 
@@ -77,27 +72,24 @@ const handleQuestionText = async (ctx) => {
 			}
 		);
 
-		ctx.session.questionCount -= 1;
-		ctx.session.awaitingQuestion = false;
-		ctx.session.currentQuestionId = newQuestion._id.toString();
+		ctx.session[SESSION_KEYS.QUESTION_COUNT] -= 1;
+		ctx.session[SESSION_KEYS.AWAITING_QUESTION] = false;
+		ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = newQuestion._id.toString();
 		const sentMessage = await sendOrEditMessage(
 			ctx,
-			`${MESSAGES.questionSent}\nОсталось вопросов: ${ctx.session.questionCount}`,
-			createStartKeyboard(ctx.session.questionCount),
-			true // Создаём новое сообщение
+			`${MESSAGES.questionSent}\nОсталось вопросов: ${
+				ctx.session[SESSION_KEYS.QUESTION_COUNT]
+			}`,
+			createStartKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT]),
+			true
 		);
-		ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-		await updateSession(ctx.from.id, {
-			lastMessageId: ctx.session.lastMessageId,
-			questionCount: ctx.session.questionCount,
-			awaitingQuestion: false,
-			currentQuestionId: newQuestion._id.toString(),
-		});
+		ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
+			sentMessage.message_id;
 	} else if (
-		ctx.session.awaitingAnswer &&
+		ctx.session[SESSION_KEYS.AWAITING_ANSWER] &&
 		ctx.from.id.toString() === process.env.ADMIN_ID
 	) {
-		const questionId = ctx.session.currentQuestionId;
+		const questionId = ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID];
 		const answer = ctx.message.text;
 		const question = await addDialogueMessage(questionId, 'admin', answer);
 		if (question) {
@@ -116,11 +108,9 @@ const handleQuestionText = async (ctx) => {
 						reply_markup: createBackKeyboard(),
 					}
 				);
-				ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-				await updateSession(ctx.from.id, {
-					lastMessageId: ctx.session.lastMessageId,
-					awaitingAnswer: false,
-				});
+				ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
+					sentMessage.message_id;
+				ctx.session[SESSION_KEYS.AWAITING_ANSWER] = false;
 				return;
 			}
 
@@ -135,12 +125,15 @@ const handleQuestionText = async (ctx) => {
 				userCtx,
 				`Сообщение от администратора по вашему вопросу #${questionId}:\n${answer}`,
 				createUserQuestionActionKeyboard(questionId),
-				false // Редактируем последнее сообщение, если возможно
+				false
 			);
-			userSession.value.lastMessageId = userSession.value.lastMessageId || {};
-			userSession.value.lastMessageId[question.userId] = sentMessage.message_id;
+			userSession.value[SESSION_KEYS.LAST_MESSAGE_ID] =
+				userSession.value[SESSION_KEYS.LAST_MESSAGE_ID] || {};
+			userSession.value[SESSION_KEYS.LAST_MESSAGE_ID][question.userId] =
+				sentMessage.message_id;
 			await updateSession(question.userId, {
-				lastMessageId: userSession.value.lastMessageId,
+				[SESSION_KEYS.LAST_MESSAGE_ID]:
+					userSession.value[SESSION_KEYS.LAST_MESSAGE_ID],
 			});
 
 			const adminMessage = await ctx.api.sendMessage(
@@ -151,11 +144,9 @@ const handleQuestionText = async (ctx) => {
 					reply_markup: createBackKeyboard(),
 				}
 			);
-			ctx.session.lastMessageId[ctx.chat.id] = adminMessage.message_id;
-			await updateSession(ctx.from.id, {
-				lastMessageId: ctx.session.lastMessageId,
-				awaitingAnswer: false,
-			});
+			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
+				adminMessage.message_id;
+			ctx.session[SESSION_KEYS.AWAITING_ANSWER] = false;
 			logger.info(
 				`Admin answered question ${questionId} for user ${question.userId}`
 			);
@@ -168,16 +159,14 @@ const handleQuestionText = async (ctx) => {
 					reply_markup: createBackKeyboard(),
 				}
 			);
-			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-			await updateSession(ctx.from.id, {
-				lastMessageId: ctx.session.lastMessageId,
-			});
+			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
+				sentMessage.message_id;
 			logger.error(`Question ${questionId} not found for answering`);
 		}
-	} else if (ctx.session.currentQuestionId) {
+	} else if (ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID]) {
 		const question = (await getQuestions()).find(
 			(q) =>
-				q._id.toString() === ctx.session.currentQuestionId &&
+				q._id.toString() === ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] &&
 				q.status === 'in_progress'
 		);
 		if (question) {
@@ -198,37 +187,30 @@ const handleQuestionText = async (ctx) => {
 				ctx,
 				MESSAGES.dialogueMessageSent,
 				createUserQuestionActionKeyboard(question._id.toString()),
-				true // Создаём новое сообщение для уточнения
+				true
 			);
-			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-			await updateSession(ctx.from.id, {
-				lastMessageId: ctx.session.lastMessageId,
-			});
+			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
+				sentMessage.message_id;
 		} else {
-			ctx.session.currentQuestionId = null;
+			ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = null;
 			const sentMessage = await sendOrEditMessage(
 				ctx,
 				'Диалог по этому вопросу завершен или вопрос не найден.',
-				createStartKeyboard(ctx.session.questionCount),
-				true // Создаём новое сообщение
+				createStartKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT]),
+				true
 			);
-			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-			await updateSession(ctx.from.id, {
-				lastMessageId: ctx.session.lastMessageId,
-				currentQuestionId: null,
-			});
+			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
+				sentMessage.message_id;
 		}
 	} else {
 		const sentMessage = await sendOrEditMessage(
 			ctx,
 			MESSAGES.unknownMessage,
-			createStartKeyboard(ctx.session.questionCount),
-			true // Создаём новое сообщение
+			createStartKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT]),
+			true
 		);
-		ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
-		await updateSession(ctx.from.id, {
-			lastMessageId: ctx.session.lastMessageId,
-		});
+		ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
+			sentMessage.message_id;
 	}
 };
 

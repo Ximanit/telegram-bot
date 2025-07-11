@@ -1,16 +1,17 @@
 const { createStartKeyboard } = require('../../keyboards');
-const { MESSAGES } = require('../../constants');
+const { MESSAGES, SESSION_KEYS } = require('../../constants');
+const { sendOrEditMessage } = require('../utils');
 
 const handleStart = async (ctx) => {
 	const userName = ctx.from?.first_name || 'Друг';
-	ctx.session.awaitingQuestion = false;
-	ctx.session.lastAction = null;
-	ctx.session.history = []; // Очищаем историю при старте
-	const sentMessage = await ctx.reply(MESSAGES.start.replace('%s', userName), {
-		parse_mode: 'Markdown',
-		reply_markup: createStartKeyboard(ctx.session.questionCount),
-	});
-	ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
+	ctx.session[SESSION_KEYS.AWAITING_QUESTION] = false;
+	ctx.session[SESSION_KEYS.HISTORY] = [];
+	await sendOrEditMessage(
+		ctx,
+		MESSAGES.start.replace('%s', userName),
+		createStartKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT]),
+		true
+	);
 };
 
 module.exports = { handleStart };
