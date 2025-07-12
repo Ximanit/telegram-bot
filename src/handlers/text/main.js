@@ -1,7 +1,9 @@
-// src/handlers/text/main.js
 const { handleText: handleSpecificText } = require('./index');
 const { handleAdminAnswer } = require('../utils/admin');
-const { addDialogueMessage } = require('../../services/questions');
+const {
+	addDialogueMessage,
+	updateQuestionStatus,
+} = require('../../services/questions');
 const { addSupportDialogueMessage } = require('../../services/support');
 const { updatePaymentStatus } = require('../../services/payments');
 const {
@@ -9,6 +11,7 @@ const {
 	createUserQuestionActionKeyboard,
 	createUserSupportQuestionActionKeyboard,
 	createStartKeyboard,
+	createBackKeyboard,
 } = require('../../keyboards');
 const { sendOrEditMessage, sendMessageToUser } = require('../utils');
 const { SESSION_KEYS, MESSAGES } = require('../../constants');
@@ -78,6 +81,56 @@ const handleText = async (ctx) => {
 		}
 		ctx.session[SESSION_KEYS.AWAITING_REJECT_PAYMENT_REASON] = false;
 		ctx.session[SESSION_KEYS.PAYMENT_ID] = null;
+	} else if (
+		ctx.session[SESSION_KEYS.AWAITING_REJECT_REASON] &&
+		ctx.from.id.toString() === process.env.ADMIN_ID
+	) {
+		const questionId = ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID];
+		const rejectReason = ctx.message.text;
+		const question = await updateQuestionStatus(
+			questionId,
+			'rejected',
+			rejectReason
+		);
+		if (question) {
+			const sentMessage = await sendMessageToUser(
+				question.userId,
+				`${MESSAGES.questionRejectedWithReason.replace(
+					'%reason',
+					rejectReason
+				)}`,
+				createBackKeyboard(),
+				ctx
+			);
+
+			const adminMessage = await ctx.api.sendMessage(
+				ctx.chat.id,
+				'Вопрос отклонен, причина отправлена пользователю.',
+				{
+					parse_mode: 'Markdown',
+					reply_markup: createBackKeyboard(),
+				}
+			);
+			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
+				adminMessage.message_id;
+			ctx.session[SESSION_KEYS.AWAITING_REJECT_REASON] = false;
+			ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = null;
+			logger.info(
+				`Question ${questionId} rejected by admin for user ${question.userId}`
+			);
+		} else {
+			const sentMessage = await ctx.api.sendMessage(
+				ctx.chat.id,
+				'Ошибка: вопрос не найден.',
+				{
+					parse_mode: 'Markdown',
+					reply_markup: createBackKeyboard(),
+				}
+			);
+			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
+				sentMessage.message_id;
+			logger.error(`Question ${questionId} not found for rejection`);
+		}
 	} else {
 		await handleSpecificText(ctx);
 	}
