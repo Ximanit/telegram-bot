@@ -1,6 +1,10 @@
 const { MESSAGES, SESSION_KEYS } = require('../../constants');
 const { sendOrEditMessage } = require('../utils');
-const { createPriceKeyboard, createBackKeyboard } = require('../../keyboards');
+const {
+	createPriceKeyboard,
+	createBackKeyboard,
+	createStartKeyboard,
+} = require('../../keyboards');
 
 const handleNavigationCallback = async (ctx, action) => {
 	if (action === 'show_terms') {

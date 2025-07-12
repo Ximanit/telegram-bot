@@ -11,7 +11,6 @@ const {
 	createUserQuestionActionKeyboard,
 	createUserSupportQuestionActionKeyboard,
 	createStartKeyboard,
-	createBackKeyboard,
 } = require('../../keyboards');
 const { sendOrEditMessage, sendMessageToUser } = require('../utils');
 const { SESSION_KEYS, MESSAGES } = require('../../constants');
