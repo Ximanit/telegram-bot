@@ -44,13 +44,14 @@ const callbackHandlers = {
 		}
 	},
 	reject_review: async (ctx) => {
-		const reviewId = ctx.callbackQuery.data.replace('approve_review_', '');
+		const reviewId = ctx.callbackQuery.data.replace('reject_review_', '');
 		if (!reviewId || reviewId === 'undefined') {
 			await ctx.answerCallbackQuery(
 				'Ошибка: некорректный идентификатор отзыва'
 			);
 			return;
 		}
+		console.log(reviewId);
 		const review = await updateReviewStatus(reviewId, false);
 		if (review) {
 			await ctx.answerCallbackQuery(MESSAGES.reviewRejected);

@@ -8,7 +8,7 @@ const { handleMeow } = require('./handlers/commands/meow');
 const { handleHelp } = require('./handlers/commands/help');
 const { handleCallbackQuery } = require('./handlers/callbacks/main');
 const { handleText } = require('./handlers/text/main');
-const { handleError } = require('./handlers/utils');
+const { handleError, sendOrEditMessage } = require('./handlers/utils');
 const { SESSION_KEYS } = require('./constants');
 const {
 	savePaymentPhoto,
@@ -112,18 +112,12 @@ bot.on('message:photo', async (ctx) => {
 			});
 			ctx.session[SESSION_KEYS.AWAITING_PAYMENT_PHOTO] = false;
 			ctx.session[SESSION_KEYS.PAYMENT_ID] = null;
-			const sentMessage = await ctx.api.sendMessage(
-				ctx.chat.id,
+			await sendOrEditMessage(
+				ctx,
 				'Фото чека отправлено на проверку администратору.',
-				{
-					parse_mode: 'Markdown',
-					reply_markup: createStartKeyboard(
-						ctx.session[SESSION_KEYS.QUESTION_COUNT]
-					),
-				}
+				createStartKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT]),
+				true
 			);
-			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
-				sentMessage.message_id;
 			logger.info('Payment photo uploaded', {
 				paymentId: ctx.session[SESSION_KEYS.PAYMENT_ID],
 				userId: ctx.from.id,

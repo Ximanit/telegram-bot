@@ -2,6 +2,8 @@ const { MongoClient } = require('mongodb');
 const logger = require('./logger');
 require('dotenv').config();
 
+const { SESSION_KEYS } = require('./constants');
+
 const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
 const dbName = process.env.DB_NAME || 'telegram_bot';
 
@@ -66,4 +68,36 @@ async function updateSession(userId, updates) {
 	}
 }
 
-module.exports = { connectDB, closeDB, updateSession };
+async function getUserSession(userId, ctx) {
+	const db = await connectDB();
+	const sessions = db.collection('sessions');
+	const userSession = await sessions.findOne({ key: userId.toString() });
+	if (!userSession) {
+		logger.error(`Session for user ${userId} not found`);
+		await sendOrEditMessage(
+			ctx,
+			'Ошибка: сессия пользователя не найдена.',
+			createBackKeyboard(),
+			true
+		);
+		return null;
+	}
+	return userSession;
+}
+
+async function updateLastMessageId(userId, messageId) {
+	await updateSession(userId, {
+		[SESSION_KEYS.LAST_MESSAGE_ID]: {
+			[userId]: messageId,
+		},
+	});
+	logger.info(`Updated LAST_MESSAGE_ID for user ${userId}: ${messageId}`);
+}
+
+module.exports = {
+	connectDB,
+	closeDB,
+	updateSession,
+	getUserSession,
+	updateLastMessageId,
+};

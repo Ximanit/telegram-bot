@@ -10,10 +10,8 @@ const {
 	addDialogueMessage,
 	getQuestions,
 } = require('../../services/questions');
-const { connectDB } = require('../../db');
 const logger = require('../../logger');
-const { ObjectId } = require('mongodb');
-const { sendOrEditMessage } = require('../utils');
+const { sendOrEditMessage, sendMessageToUser } = require('../utils');
 
 const validateQuestion = (text) => {
 	const trimmed = text.trim();
@@ -93,56 +91,18 @@ const handleQuestionText = async (ctx) => {
 		const answer = ctx.message.text;
 		const question = await addDialogueMessage(questionId, 'admin', answer);
 		if (question) {
-			const db = await connectDB();
-			const sessions = db.collection('sessions');
-			const userSession = await sessions.findOne({
-				key: question.userId.toString(),
-			});
-			if (!userSession) {
-				logger.error(`Session for user ${question.userId} not found`);
-				const sentMessage = await ctx.api.sendMessage(
-					ctx.chat.id,
-					'Ошибка: сессия пользователя не найдена.',
-					{
-						parse_mode: 'Markdown',
-						reply_markup: createBackKeyboard(),
-					}
-				);
-				ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
-					sentMessage.message_id;
-				ctx.session[SESSION_KEYS.AWAITING_ANSWER] = false;
-				return;
-			}
-
-			const userCtx = {
-				chat: { id: question.userId },
-				session: userSession.value,
-				api: ctx.api,
-				answerCallbackQuery: () => {},
-			};
-
-			const sentMessage = await sendOrEditMessage(
-				userCtx,
-				`Сообщение от администратора по вашему вопросу #${questionId}:\n${answer}`,
-				createUserQuestionActionKeyboard(questionId),
-				false
+			await sendMessageToUser(
+				question.userId,
+				`Сообщение от администратора:\n${answer}`,
+				createBackKeyboard(),
+				ctx
 			);
-			userSession.value[SESSION_KEYS.LAST_MESSAGE_ID] =
-				userSession.value[SESSION_KEYS.LAST_MESSAGE_ID] || {};
-			userSession.value[SESSION_KEYS.LAST_MESSAGE_ID][question.userId] =
-				sentMessage.message_id;
-			await updateSession(question.userId, {
-				[SESSION_KEYS.LAST_MESSAGE_ID]:
-					userSession.value[SESSION_KEYS.LAST_MESSAGE_ID],
-			});
 
-			const adminMessage = await ctx.api.sendMessage(
-				ctx.chat.id,
+			const adminMessage = await sendOrEditMessage(
+				ctx,
 				'Сообщение отправлено пользователю.',
-				{
-					parse_mode: 'Markdown',
-					reply_markup: createBackKeyboard(),
-				}
+				createBackKeyboard(),
+				true
 			);
 			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
 				adminMessage.message_id;
@@ -151,13 +111,11 @@ const handleQuestionText = async (ctx) => {
 				`Admin answered question ${questionId} for user ${question.userId}`
 			);
 		} else {
-			const sentMessage = await ctx.api.sendMessage(
-				ctx.chat.id,
+			const sentMessage = await sendOrEditMessage(
+				ctx,
 				'Ошибка: вопрос не найден.',
-				{
-					parse_mode: 'Markdown',
-					reply_markup: createBackKeyboard(),
-				}
+				createBackKeyboard(),
+				true
 			);
 			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
 				sentMessage.message_id;

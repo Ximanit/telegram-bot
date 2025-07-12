@@ -5,15 +5,16 @@ const {
 	createStartKeyboard,
 	createConfirmClearCartKeyboard,
 } = require('../../keyboards');
-const { MESSAGES, SERVICES, SESSION_KEYS } = require('../../constants');
-const { sendOrEditMessage, cartUtils } = require('../utils');
+const { MESSAGES, SESSION_KEYS } = require('../../constants');
+const { sendOrEditMessage, sendMessageToUser } = require('../utils');
+const { cartUtils } = require('../utils/cart');
 const {
 	addToCart,
 	increaseQuantity,
 	decreaseQuantity,
 } = require('../../services/cart');
 const { addPayment, updatePaymentStatus } = require('../../services/payments');
-const { connectDB, updateSession } = require('../../db');
+const { getUserSession, updateSession } = require('../../db');
 const logger = require('../../logger');
 
 const handleCartCallback = async (ctx, action, userName) => {
@@ -65,12 +66,10 @@ const handleCartCallback = async (ctx, action, userName) => {
 		);
 		ctx.session[SESSION_KEYS.PAYMENT_ID] = payment._id.toString();
 		ctx.session[SESSION_KEYS.AWAITING_PAYMENT_PHOTO] = true;
+
 		await sendOrEditMessage(
 			ctx,
-			`Пожалуйста, оплатите ${total} руб. по следующим реквизитам:\n\n` +
-				`Карта: 1234 5678 9012 3456\n` +
-				`Получатель: Имя Фамилия\n\n` +
-				`После оплаты загрузите фото чека.`,
+			MESSAGES.paymentInstructions.replace('%total', total),
 			createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
 		);
 		await ctx.answerCallbackQuery();
@@ -79,21 +78,8 @@ const handleCartCallback = async (ctx, action, userName) => {
 		const payment = await updatePaymentStatus(paymentId, 'confirmed');
 		if (payment) {
 			const questionCount = payment.questionCount;
-			const db = await connectDB();
-			const sessions = db.collection('sessions');
-			const userSession = await sessions.findOne({
-				key: payment.userId.toString(),
-			});
-			if (!userSession) {
-				logger.error(`Session for user ${payment.userId} not found`);
-				await sendOrEditMessage(
-					ctx,
-					'Ошибка: сессия пользователя не найдена.',
-					createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
-				);
-				await ctx.answerCallbackQuery('Ошибка: сессия пользователя не найдена');
-				return;
-			}
+			const userSession = await getUserSession(payment.userId, ctx);
+			if (!userSession) return;
 			const updatedSessionData = {
 				paidServices: payment.cart.flatMap((item) =>
 					Array(item.quantity).fill({
@@ -108,28 +94,21 @@ const handleCartCallback = async (ctx, action, userName) => {
 				cart: [],
 			};
 			await updateSession(payment.userId, updatedSessionData);
-			const userCtx = {
-				chat: { id: payment.userId },
-				session: { ...userSession.value, ...updatedSessionData },
-				api: ctx.api,
-				answerCallbackQuery: () => {},
-			};
-			const sentMessage = await sendOrEditMessage(
-				userCtx,
+			await sendMessageToUser(
+				payment.userId,
 				`${MESSAGES.paymentConfirmed}\n${MESSAGES.paymentTotal.replace(
 					'%total',
 					payment.total
 				)}\nУ вас доступно вопросов: ${questionCount}`,
-				createStartKeyboard(questionCount)
+				createStartKeyboard(questionCount),
+				ctx
 			);
-			await updateSession(payment.userId, {
-				lastMessageId: { [payment.userId]: sentMessage.message_id },
-			});
 			await sendOrEditMessage(
 				ctx,
 				'Платеж подтвержден',
 				createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
 			);
+			ctx.session[SESSION_KEYS.CART] = [];
 			await ctx.answerCallbackQuery('Платеж подтвержден');
 		} else {
 			await sendOrEditMessage(

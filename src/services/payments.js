@@ -101,7 +101,6 @@ async function savePaymentPhoto(fileId, paymentId, ctx) {
 	try {
 		const db = await connectDB();
 		const bucket = new GridFSBucket(db, { bucketName: 'payment_photos' });
-
 		const file = await ctx.api.getFile(fileId);
 		const fileUrl = `https://api.telegram.org/file/bot${process.env.API_KEY}/${file.file_path}`;
 		const response = await axios.get(fileUrl, { responseType: 'stream' });

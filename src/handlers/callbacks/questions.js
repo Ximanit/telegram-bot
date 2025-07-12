@@ -1,16 +1,10 @@
 const {
 	createBackKeyboard,
-	createQuestionActionKeyboard,
-	createUserQuestionActionKeyboard,
 	createReviewPromptKeyboard,
 } = require('../../keyboards');
-const {
-	updateQuestionStatus,
-	addDialogueMessage,
-} = require('../../services/questions');
+const { updateQuestionStatus } = require('../../services/questions');
 const { MESSAGES, SESSION_KEYS } = require('../../constants');
-const { sendOrEditMessage } = require('../utils');
-const { updateSession } = require('../../db');
+const { sendOrEditMessage, sendMessageToUser } = require('../utils');
 const logger = require('../../logger');
 
 const handleQuestionCallback = async (ctx, action) => {
@@ -54,28 +48,17 @@ const handleQuestionCallback = async (ctx, action) => {
 				ctx.from.id.toString() === process.env.ADMIN_ID
 					? 'Администратор'
 					: 'Пользователь';
-			const userCtx = {
-				chat: { id: question.userId },
-				session: ctx.session,
-				api: ctx.api,
-				answerCallbackQuery: () => {},
-			};
 			const messageText =
 				sender === 'Администратор'
 					? MESSAGES.promptReviewAfterCloseAdmin
 					: MESSAGES.promptReviewAfterClose;
-			const sentMessage = await sendOrEditMessage(
-				userCtx,
+			await sendMessageToUser(
+				question.userId,
 				messageText,
 				createReviewPromptKeyboard(),
-				false
+				ctx
 			);
 			ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = null;
-			await updateSession(question.userId, {
-				[SESSION_KEYS.LAST_MESSAGE_ID]: {
-					[question.userId]: sentMessage.message_id,
-				},
-			});
 			await ctx.answerCallbackQuery('Вопрос закрыт');
 		} else {
 			await ctx.answerCallbackQuery('Ошибка: вопрос не найден');
@@ -86,8 +69,7 @@ const handleQuestionCallback = async (ctx, action) => {
 		await sendOrEditMessage(
 			ctx,
 			'Пожалуйста, отправьте уточнение:',
-			createBackKeyboard(),
-			true
+			createBackKeyboard()
 		);
 		await ctx.answerCallbackQuery();
 	}

@@ -8,7 +8,7 @@ const {
 	addSupportDialogueMessage,
 } = require('../../services/support');
 const { MESSAGES, SESSION_KEYS } = require('../../constants');
-const { sendOrEditMessage } = require('../utils');
+const { sendOrEditMessage, sendMessageToUser } = require('../utils');
 
 const handleSupportQuestionCallback = async (ctx, action) => {
 	if (action.startsWith('answer_support_question_')) {
@@ -38,22 +38,16 @@ const handleSupportQuestionCallback = async (ctx, action) => {
 					? 'Администратор'
 					: 'Пользователь';
 
-			const userCtx = {
-				chat: { id: question.userId },
-				session: ctx.session,
-				api: ctx.api,
-				answerCallbackQuery: () => {},
-			};
-
 			const messageText =
 				sender === 'Администратор'
 					? 'Вопрос техподдержки закрыт администратором.'
 					: 'Вопрос техподдержки закрыт.';
 
-			await sendOrEditMessage(
-				userCtx,
+			await sendMessageToUser(
+				question.userId,
 				messageText,
-				createStartKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
+				createStartKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT]),
+				ctx
 			);
 
 			ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID] = null;

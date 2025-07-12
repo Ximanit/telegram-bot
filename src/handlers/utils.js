@@ -1,25 +1,33 @@
 const logger = require('../logger');
 const { SESSION_KEYS, MESSAGES } = require('../constants');
+const { getUserSession, updateLastMessageId } = require('../db');
 
-const handleError = async (err, ctx) => {
+const handleError = async (err, ctx, additionalInfo = {}) => {
 	const updateId = ctx?.update?.update_id ?? 'unknown';
-	console.error(`Error for update ${updateId}:`, err);
+	logger.error('Произошла ошибка', {
+		updateId,
+		error: err.message,
+		stack: err.stack,
+		userId: ctx?.from?.id,
+		chatId: ctx?.chat?.id,
+		...additionalInfo,
+	});
 	if (ctx?.chat) {
 		try {
-			const sentMessage = await ctx.api.sendMessage(
-				ctx.chat.id,
+			await sendOrEditMessage(
+				ctx,
 				MESSAGES.error,
-				{
-					parse_mode: 'Markdown',
-					reply_markup: createStartKeyboard(ctx.session.questionCount),
-				}
+				createStartKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT]),
+				true
 			);
-			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 			if (ctx.callbackQuery) {
 				await ctx.answerCallbackQuery({ text: MESSAGES.errorCallback });
 			}
 		} catch (replyError) {
-			console.error('Ошибка при отправке сообщения об ошибке:', replyError);
+			logger.error('Ошибка при отправке сообщения об ошибке', {
+				error: replyError.message,
+				stack: replyError.stack,
+			});
 		}
 	}
 };
@@ -109,24 +117,22 @@ const sendMeow = async (ctx) => {
 	await sendOrEditMessage(ctx, MESSAGES.meow, createStartKeyboard(), true);
 };
 
-const cartUtils = {
-	summary: (cart) => ({
-		count: cart.reduce((sum, item) => sum + item.quantity, 0),
-		total: cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
-	}),
-	format: (cart) => {
-		if (!cart.length) return MESSAGES.cartEmpty;
-		const items = cart
-			.map(
-				(item, i) =>
-					`${i + 1}. ${item.name} — ${item.price} руб. (x${item.quantity})`
-			)
-			.join('\n');
-		const { total } = cartUtils.summary(cart);
-		return MESSAGES.cartContent
-			.replace('%items', items)
-			.replace('%total', total);
-	},
+const sendMessageToUser = async (userId, text, keyboard, ctx) => {
+	const userSession = await getUserSession(userId, ctx);
+	if (!userSession) return;
+	const userCtx = {
+		chat: { id: userId },
+		session: userSession.value,
+		api: ctx.api,
+		answerCallbackQuery: () => {},
+	};
+	const sentMessage = await sendOrEditMessage(userCtx, text, keyboard);
+	await updateLastMessageId(userId, userId, sentMessage.message_id);
 };
 
-module.exports = { sendOrEditMessage, sendMeow, handleError, cartUtils };
+module.exports = {
+	sendOrEditMessage,
+	sendMeow,
+	handleError,
+	sendMessageToUser,
+};
