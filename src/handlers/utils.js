@@ -32,13 +32,7 @@ const handleError = async (err, ctx, additionalInfo = {}) => {
 	}
 };
 
-const sendOrEditMessage = async (
-	ctx,
-	text,
-	keyboard,
-	forceNew = false,
-	skipHistory = false
-) => {
+const sendOrEditMessage = async (ctx, text, keyboard, forceNew = false) => {
 	try {
 		const chatId = ctx.chat.id;
 		const lastMessageId = ctx.session[SESSION_KEYS.LAST_MESSAGE_ID]?.[chatId];
@@ -91,16 +85,6 @@ const sendOrEditMessage = async (
 			);
 		}
 
-		if (!skipHistory) {
-			ctx.session[SESSION_KEYS.HISTORY] =
-				ctx.session[SESSION_KEYS.HISTORY] || [];
-			ctx.session[SESSION_KEYS.HISTORY].push({ text, keyboard });
-			logger.info(
-				`Updated history for chat ${chatId}: ${JSON.stringify(
-					ctx.session[SESSION_KEYS.HISTORY]
-				)}`
-			);
-		}
 		return sentMessage;
 	} catch (error) {
 		logger.error(

@@ -31,8 +31,10 @@ const handleCallbackQuery = async (ctx) => {
 	}
 
 	if (
+		action === 'back' ||
 		action === 'back_to_menu' ||
 		action === 'back_to_price' ||
+		action === 'back_from_payment_photo' ||
 		action === 'show_terms' ||
 		action === 'show_price'
 	) {

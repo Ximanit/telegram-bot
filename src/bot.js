@@ -59,7 +59,6 @@ const composer = new Composer();
 					[SESSION_KEYS.QUESTION_COUNT]: 0,
 					[SESSION_KEYS.PAYMENT_ID]: null,
 					[SESSION_KEYS.LAST_MESSAGE_ID]: {},
-					[SESSION_KEYS.HISTORY]: [],
 				}),
 			})
 		);

@@ -8,7 +8,7 @@ const handleHelp = async (ctx) => {
 		ctx,
 		'Пожалуйста, опишите ваш вопрос для технической поддержки:',
 		createBackKeyboard(),
-		1
+		true
 	);
 };
 

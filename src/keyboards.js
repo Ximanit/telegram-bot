@@ -18,7 +18,7 @@ const createPriceKeyboard = () => {
 		.text('Ответ на 1 вопрос — 2000 руб.', 'add_to_cart_single_question')
 		.row()
 		.text('Просмотреть корзину', 'view_cart')
-		.text('Назад', 'back');
+		.text('Назад', 'back_to_menu');
 };
 
 const createCartKeyboard = (cart) => {
@@ -36,12 +36,16 @@ const createCartKeyboard = (cart) => {
 		.text('Очистить корзину', 'clear_cart')
 		.text('Оплатить', 'pay_cart')
 		.row()
-		.text('Назад', 'back');
+		.text('Назад', 'back_to_price');
 	return keyboard;
 };
 
 const createBackKeyboard = () => {
-	return new InlineKeyboard().text('Назад', 'back');
+	return new InlineKeyboard().text('Назад', 'back_to_menu');
+};
+
+const createBackCartKeyboard = () => {
+	return new InlineKeyboard().text('Назад', 'back_from_payment_photo');
 };
 
 const createReviewModerationKeyboard = (reviewId) => {
@@ -78,19 +82,23 @@ const createReviewPromptKeyboard = () => {
 const createSupportQuestionActionKeyboard = (questionId) => {
 	return new InlineKeyboard()
 		.text('Ответить', `answer_support_question_${questionId}`)
-		.text('Закрыть', `close_support_question_${questionId}`);
+		.text('Закрыть', `close_support_question_${questionId}`)
+		.row()
+		.text('Назад', 'back_to_menu');
 };
 
 const createUserSupportQuestionActionKeyboard = (questionId) => {
 	return new InlineKeyboard()
 		.text('Уточнить', `clarify_support_question_${questionId}`)
-		.text('Закрыть', `close_support_question_${questionId}`);
+		.text('Закрыть', `close_support_question_${questionId}`)
+		.row()
+		.text('Назад', 'back_to_menu');
 };
 
 const createConfirmClearCartKeyboard = () => {
 	return new InlineKeyboard()
 		.text('Да, очистить', 'confirm_clear_cart')
-		.text('Назад', 'back');
+		.text('Назад', 'back_to_price');
 };
 
 module.exports = {
@@ -106,4 +114,5 @@ module.exports = {
 	createSupportQuestionActionKeyboard,
 	createUserSupportQuestionActionKeyboard,
 	createConfirmClearCartKeyboard,
+	createBackCartKeyboard,
 };

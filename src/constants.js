@@ -105,7 +105,6 @@ const SESSION_KEYS = {
 	QUESTION_COUNT: 'questionCount',
 	PAYMENT_ID: 'paymentId',
 	LAST_MESSAGE_ID: 'lastMessageId',
-	HISTORY: 'history',
 };
 
 module.exports = {

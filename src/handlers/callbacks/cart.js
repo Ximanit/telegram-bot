@@ -1,5 +1,5 @@
 const {
-	createPriceKeyboard,
+	createBackCartKeyboard,
 	createCartKeyboard,
 	createBackKeyboard,
 	createStartKeyboard,
@@ -47,11 +47,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 	} else if (action === 'confirm_clear_cart') {
 		ctx.session[SESSION_KEYS.CART] = [];
 		await ctx.answerCallbackQuery(MESSAGES.cartCleared);
-		await sendOrEditMessage(
-			ctx,
-			MESSAGES.cartEmpty,
-			createCartKeyboard(ctx.session[SESSION_KEYS.CART])
-		);
+		await sendOrEditMessage(ctx, MESSAGES.cartEmpty, createBackKeyboard());
 	} else if (action === 'pay_cart') {
 		if (!ctx.session[SESSION_KEYS.CART].length) {
 			await ctx.answerCallbackQuery(MESSAGES.cartEmptyWarning);
@@ -70,7 +66,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 		await sendOrEditMessage(
 			ctx,
 			MESSAGES.paymentInstructions.replace('%total', total),
-			createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
+			createBackCartKeyboard(ctx.session[SESSION_KEYS.CART])
 		);
 		await ctx.answerCallbackQuery();
 	} else if (action.startsWith('confirm_payment_')) {
