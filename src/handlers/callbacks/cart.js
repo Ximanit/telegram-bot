@@ -85,8 +85,8 @@ const handleCartCallback = async (ctx, action, userName) => {
 					})
 				),
 				hasPaid: true,
-				questionCount,
-				awaitingQuestion: questionCount > 0,
+				questionCount: userSession.value.questionCount + questionCount, // Накопление вопросов
+				awaitingQuestion: userSession.value.questionCount + questionCount > 0,
 				cart: [],
 			};
 			await updateSession(payment.userId, updatedSessionData);
@@ -95,8 +95,8 @@ const handleCartCallback = async (ctx, action, userName) => {
 				`${MESSAGES.paymentConfirmed}\n${MESSAGES.paymentTotal.replace(
 					'%total',
 					payment.total
-				)}\nУ вас доступно вопросов: ${questionCount}`,
-				createStartKeyboard(questionCount),
+				)}\nУ вас доступно вопросов: ${updatedSessionData.questionCount}`,
+				createStartKeyboard(updatedSessionData.questionCount),
 				ctx
 			);
 			await sendOrEditMessage(

@@ -36,7 +36,8 @@ const handleCallbackQuery = async (ctx) => {
 		action === 'back_to_price' ||
 		action === 'back_from_payment_photo' ||
 		action === 'show_terms' ||
-		action === 'show_price'
+		action === 'show_price' ||
+		action === 'show_profile'
 	) {
 		return handleNavigationCallback(ctx, action);
 	}

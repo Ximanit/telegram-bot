@@ -6,7 +6,7 @@ const createStartKeyboard = (questionCount = 0) => {
 		.text('Прайс', 'show_price')
 		.row()
 		.text('Отзывы', 'show_reviews')
-		.text('Оставить отзыв', 'add_review');
+		.text('Личный кабинет', 'show_profile');
 	if (questionCount > 0) {
 		keyboard.row().text('Задать вопрос', 'ask_question');
 	}

@@ -28,6 +28,19 @@ const callbackHandlers = {
 		logMessage: (ctx) => `User ${ctx.chat.id} returned to main menu`,
 	},
 
+	// Показ личного кабинета
+	show_profile: {
+		text: (ctx) => {
+			let currentMessage = `Ваш личный кабинет:\n\nДоступно вопросов: ${
+				ctx.session[SESSION_KEYS.QUESTION_COUNT]
+			}`;
+
+			return currentMessage;
+		},
+		keyboard: () => createBackKeyboard(),
+		logMessage: (ctx) => `User ${ctx.chat.id} viewed profile`,
+	},
+
 	// Возврат к прайс-листу
 	back_to_price: {
 		text: (ctx) => {
