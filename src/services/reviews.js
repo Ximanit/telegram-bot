@@ -24,7 +24,7 @@ async function addReview(userId, username, text) {
 			userId,
 			username: username || `ID ${userId}`,
 			text,
-			approved: false,
+			status: 'pending',
 			timestamp: new Date().toISOString(),
 		};
 		const result = await db.collection('reviews').insertOne(newReview);
@@ -41,33 +41,26 @@ async function addReview(userId, username, text) {
 	}
 }
 
-async function updateReviewStatus(_id, approved) {
+async function updateReviewStatus(_id, status) {
 	try {
 		const db = await connectDB();
 		const reviewId = typeof _id === 'string' ? new ObjectId(_id) : _id;
-
-		// Поиск документа
 		const review = await db.collection('reviews').findOne({ _id: reviewId });
 		if (!review) {
 			logger.warn(`Review with _id ${_id} not found`);
 			return null;
 		}
-
-		// Обновление документа
 		const result = await db
 			.collection('reviews')
-			.updateOne({ _id: reviewId }, { $set: { approved } });
-
+			.updateOne({ _id: reviewId }, { $set: { status } });
 		if (result.matchedCount === 0) {
 			logger.warn(`Review with _id ${_id} not found during update`);
 			return null;
 		}
-
-		// Повторный поиск для возврата обновленного документа
 		const updatedReview = await db
 			.collection('reviews')
 			.findOne({ _id: reviewId });
-		logger.info(`Review ${_id} updated, approved: ${approved}`);
+		logger.info(`Review ${_id} updated, status: ${status}`);
 		return updatedReview;
 	} catch (error) {
 		logger.error('Ошибка обновления статуса отзыва в MongoDB:', {
@@ -78,4 +71,27 @@ async function updateReviewStatus(_id, approved) {
 	}
 }
 
-module.exports = { getReviews, addReview, updateReviewStatus };
+async function getPendingReviews() {
+	try {
+		const db = await connectDB();
+		const reviews = await db
+			.collection('reviews')
+			.find({ status: 'pending' })
+			.toArray();
+		logger.info(`Fetched ${reviews.length} pending reviews from MongoDB`);
+		return reviews;
+	} catch (error) {
+		logger.error('Ошибка чтения pending отзывов из MongoDB:', {
+			error: error.message,
+			stack: error.stack,
+		});
+		return [];
+	}
+}
+
+module.exports = {
+	getReviews,
+	addReview,
+	updateReviewStatus,
+	getPendingReviews,
+};

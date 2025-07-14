@@ -132,9 +132,28 @@ async function savePaymentPhoto(fileId, paymentId, ctx) {
 	}
 }
 
+async function getPendingPayments() {
+	try {
+		const db = await connectDB();
+		const payments = await db
+			.collection('payments')
+			.find({ status: 'pending' })
+			.toArray();
+		logger.info(`Fetched ${payments.length} pending payments from MongoDB`);
+		return payments;
+	} catch (error) {
+		logger.error('Ошибка чтения pending платежей из MongoDB:', {
+			error: error.message,
+			stack: error.stack,
+		});
+		return [];
+	}
+}
+
 module.exports = {
 	addPayment,
 	updatePaymentStatus,
 	getPayments,
 	savePaymentPhoto,
+	getPendingPayments,
 };

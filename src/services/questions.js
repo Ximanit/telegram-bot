@@ -47,7 +47,6 @@ async function updateQuestionStatus(_id, status, rejectReason = null) {
 		const db = await connectDB();
 		const questionId = typeof _id === 'string' ? new ObjectId(_id) : _id;
 
-		// Поиск документа
 		const question = await db
 			.collection('questions')
 			.findOne({ _id: questionId });
@@ -56,7 +55,6 @@ async function updateQuestionStatus(_id, status, rejectReason = null) {
 			return null;
 		}
 
-		// Обновление документа
 		const updateFields = { status };
 		if (rejectReason) updateFields.rejectReason = rejectReason;
 
@@ -69,7 +67,6 @@ async function updateQuestionStatus(_id, status, rejectReason = null) {
 			return null;
 		}
 
-		// Повторный поиск для возврата обновленного документа
 		const updatedQuestion = await db
 			.collection('questions')
 			.findOne({ _id: questionId });
@@ -89,7 +86,6 @@ async function addDialogueMessage(_id, sender, message) {
 		const db = await connectDB();
 		const questionId = typeof _id === 'string' ? new ObjectId(_id) : _id;
 
-		// Поиск документа
 		const question = await db
 			.collection('questions')
 			.findOne({ _id: questionId });
@@ -98,7 +94,6 @@ async function addDialogueMessage(_id, sender, message) {
 			return null;
 		}
 
-		// Обновление документа
 		const result = await db.collection('questions').updateOne(
 			{ _id: questionId },
 			{
@@ -117,7 +112,6 @@ async function addDialogueMessage(_id, sender, message) {
 			return null;
 		}
 
-		// Повторный поиск для возврата обновленного документа
 		const updatedQuestion = await db
 			.collection('questions')
 			.findOne({ _id: questionId });
@@ -132,9 +126,30 @@ async function addDialogueMessage(_id, sender, message) {
 	}
 }
 
+async function getProcessingQuestions() {
+	try {
+		const db = await connectDB();
+		const questions = await db
+			.collection('questions')
+			.find({ status: { $in: ['pending', 'in_progress'] } })
+			.toArray();
+		logger.info(
+			`Fetched ${questions.length} processing questions from MongoDB`
+		);
+		return questions;
+	} catch (error) {
+		logger.error('Ошибка чтения processing вопросов из MongoDB:', {
+			error: error.message,
+			stack: error.stack,
+		});
+		return [];
+	}
+}
+
 module.exports = {
 	getQuestions,
 	addQuestion,
 	updateQuestionStatus,
 	addDialogueMessage,
+	getProcessingQuestions,
 };

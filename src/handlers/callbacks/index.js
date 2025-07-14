@@ -3,6 +3,7 @@ const { handleNavigationCallback } = require('./navigation');
 const { handleReviewCallback } = require('./reviews');
 const { handleQuestionCallback } = require('./questions');
 const { handleSupportQuestionCallback } = require('./support');
+const { handleAdminCallback } = require('./admin');
 
 const handleCallbackQuery = async (ctx) => {
 	const action = ctx.callbackQuery.data;
@@ -59,6 +60,18 @@ const handleCallbackQuery = async (ctx) => {
 		return handleSupportQuestionCallback(ctx, action);
 	}
 
+	if (
+		action === 'admin_reviews' ||
+		action === 'admin_payments' ||
+		action === 'admin_questions' ||
+		action === 'admin_support_questions' ||
+		action.startsWith('select_reviews_') ||
+		action.startsWith('select_payments_') ||
+		action.startsWith('select_questions_') ||
+		action.startsWith('select_support_questions_')
+	) {
+		return handleAdminCallback(ctx, action);
+	}
 	if (action === 'noop') {
 		return ctx.answerCallbackQuery();
 	}

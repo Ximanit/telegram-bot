@@ -52,7 +52,6 @@ async function updateSupportQuestionStatus(_id, status) {
 		const db = await connectDB();
 		const questionId = typeof _id === 'string' ? new ObjectId(_id) : _id;
 
-		// Поиск документа
 		const question = await db
 			.collection('support_questions')
 			.findOne({ _id: questionId });
@@ -61,7 +60,6 @@ async function updateSupportQuestionStatus(_id, status) {
 			return null;
 		}
 
-		// Обновление документа
 		const result = await db
 			.collection('support_questions')
 			.updateOne({ _id: questionId }, { $set: { status } });
@@ -71,7 +69,6 @@ async function updateSupportQuestionStatus(_id, status) {
 			return null;
 		}
 
-		// Повторный поиск для возврата обновленного документа
 		const updatedQuestion = await db
 			.collection('support_questions')
 			.findOne({ _id: questionId });
@@ -91,7 +88,6 @@ async function addSupportDialogueMessage(_id, sender, message) {
 		const db = await connectDB();
 		const questionId = typeof _id === 'string' ? new ObjectId(_id) : _id;
 
-		// Поиск документа
 		const question = await db
 			.collection('support_questions')
 			.findOne({ _id: questionId });
@@ -100,7 +96,6 @@ async function addSupportDialogueMessage(_id, sender, message) {
 			return null;
 		}
 
-		// Обновление документа
 		const result = await db.collection('support_questions').updateOne(
 			{ _id: questionId },
 			{
@@ -119,7 +114,6 @@ async function addSupportDialogueMessage(_id, sender, message) {
 			return null;
 		}
 
-		// Повторный поиск для возврата обновленного документа
 		const updatedQuestion = await db
 			.collection('support_questions')
 			.findOne({ _id: questionId });
@@ -136,9 +130,30 @@ async function addSupportDialogueMessage(_id, sender, message) {
 	}
 }
 
+async function getProcessingSupportQuestions() {
+	try {
+		const db = await connectDB();
+		const questions = await db
+			.collection('support_questions')
+			.find({ status: { $in: ['pending', 'in_progress'] } })
+			.toArray();
+		logger.info(
+			`Fetched ${questions.length} processing support questions from MongoDB`
+		);
+		return questions;
+	} catch (error) {
+		logger.error('Ошибка чтения processing вопросов техподдержки из MongoDB:', {
+			error: error.message,
+			stack: error.stack,
+		});
+		return [];
+	}
+}
+
 module.exports = {
 	getSupportQuestions,
 	addSupportQuestion,
 	updateSupportQuestionStatus,
 	addSupportDialogueMessage,
+	getProcessingSupportQuestions,
 };

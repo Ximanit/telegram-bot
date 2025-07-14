@@ -28,6 +28,13 @@ const callbackHandlers = {
 		logMessage: (ctx) => `User ${ctx.chat.id} returned to main menu`,
 	},
 
+	// Возврат в админ-панель
+	back_to_admin_menu: {
+		text: () => 'Добро пожаловать в админ-панель!\nВыберите раздел:',
+		keyboard: () => createAdminMenuKeyboard(),
+		logMessage: (ctx) => `Admin ${ctx.chat.id} returned to admin menu`,
+	},
+
 	// Показ личного кабинета
 	show_profile: {
 		text: (ctx) => {

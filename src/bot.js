@@ -6,6 +6,7 @@ const logger = require('./logger');
 const { handleStart } = require('./handlers/commands/start');
 const { handleMeow } = require('./handlers/commands/meow');
 const { handleHelp } = require('./handlers/commands/help');
+const { handleAdmin } = require('./handlers/commands/admin');
 const { handleCallbackQuery } = require('./handlers/callbacks/main');
 const { handleText } = require('./handlers/text/main');
 const { handleError, sendOrEditMessage } = require('./handlers/utils');
@@ -75,10 +76,13 @@ const composer = new Composer();
 // Регистрируем composer на боте
 bot.use(composer);
 
-// Регистрация обработчиков
+// Регистрация обработчиков команд
 bot.command('start', handleStart);
 bot.command('meow', handleMeow);
 bot.command('help', handleHelp);
+bot.command('admin', handleAdmin);
+
+// Регистрация обработчиков
 bot.on('callback_query:data', handleCallbackQuery);
 bot.on('message:text', handleText);
 bot.on('message:photo', async (ctx) => {

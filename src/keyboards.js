@@ -101,6 +101,15 @@ const createConfirmClearCartKeyboard = () => {
 		.text('Назад', 'back_to_price');
 };
 
+const createAdminMenuKeyboard = () => {
+	return new InlineKeyboard()
+		.text('Отзывы', 'admin_reviews')
+		.text('Платежи', 'admin_payments')
+		.row()
+		.text('Вопросы', 'admin_questions')
+		.text('Вопросы тех. поддержки', 'admin_support_questions');
+};
+
 module.exports = {
 	createStartKeyboard,
 	createPriceKeyboard,
@@ -115,4 +124,5 @@ module.exports = {
 	createUserSupportQuestionActionKeyboard,
 	createConfirmClearCartKeyboard,
 	createBackCartKeyboard,
+	createAdminMenuKeyboard,
 };
