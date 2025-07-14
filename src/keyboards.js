@@ -51,26 +51,34 @@ const createBackCartKeyboard = () => {
 const createReviewModerationKeyboard = (reviewId) => {
 	return new InlineKeyboard()
 		.text('Одобрить ✅', `approve_review_${reviewId}`)
-		.text('Отклонить ❌', `reject_review_${reviewId}`);
+		.text('Отклонить ❌', `reject_review_${reviewId}`)
+		.row()
+		.text('Назад', 'admin_reviews'); // Возврат к списку отзывов
 };
 
 const createPaymentConfirmationKeyboard = (paymentId) => {
 	return new InlineKeyboard()
 		.text('Подтвердить оплату ✅', `confirm_payment_${paymentId}`)
-		.text('Отклонить оплату ❌', `reject_payment_${paymentId}`);
+		.text('Отклонить оплату ❌', `reject_payment_${paymentId}`)
+		.row()
+		.text('Назад', 'admin_payments'); // Возврат к списку платежей
 };
 
 const createQuestionActionKeyboard = (questionId) => {
 	return new InlineKeyboard()
 		.text('Ответить', `answer_question_${questionId}`)
 		.text('Отклонить', `reject_question_${questionId}`)
-		.text('Закрыть', `close_question_${questionId}`);
+		.text('Закрыть', `close_question_${questionId}`)
+		.row()
+		.text('Назад', 'admin_questions'); // Возврат к списку вопросов
 };
 
 const createUserQuestionActionKeyboard = (questionId) => {
 	return new InlineKeyboard()
 		.text('Задать уточнения', `clarify_question_${questionId}`)
-		.text('Закрыть вопрос', `close_question_${questionId}`);
+		.text('Закрыть вопрос', `close_question_${questionId}`)
+		.row()
+		.text('Назад', 'back_to_menu');
 };
 
 const createReviewPromptKeyboard = () => {
@@ -84,7 +92,7 @@ const createSupportQuestionActionKeyboard = (questionId) => {
 		.text('Ответить', `answer_support_question_${questionId}`)
 		.text('Закрыть', `close_support_question_${questionId}`)
 		.row()
-		.text('Назад', 'back_to_menu');
+		.text('Назад', 'admin_support_questions'); // Возврат к списку вопросов техподдержки
 };
 
 const createUserSupportQuestionActionKeyboard = (questionId) => {

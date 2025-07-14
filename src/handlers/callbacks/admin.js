@@ -11,7 +11,9 @@ const { getProcessingQuestions } = require('../../services/questions');
 const { getProcessingSupportQuestions } = require('../../services/support');
 const { sendOrEditMessage } = require('../utils');
 const { InlineKeyboard } = require('grammy');
+const { getPaymentPhoto } = require('../../services/payments');
 const logger = require('../../logger');
+const { getItemById } = require('../../db');
 
 // Унифицированная функция для форматирования краткого описания элемента (для кнопок)
 const formatItemShort = (item, type) => {
@@ -33,7 +35,6 @@ const formatItemShort = (item, type) => {
 		default:
 			text = '';
 	}
-	// Ограничиваем длину текста кнопки (Telegram: ~64 символа)
 	return text.length > 60 ? text.substring(0, 57) + '...' : text;
 };
 
@@ -55,29 +56,6 @@ const formatItemFull = (item, type) => {
 };
 
 // Унифицированная функция для получения элемента по ID
-const getItemById = async (type, id) => {
-	const { ObjectId } = require('mongodb');
-	const { connectDB } = require('../../db');
-	const db = await connectDB();
-	const collectionMap = {
-		reviews: 'reviews',
-		payments: 'payments',
-		questions: 'questions',
-		support_questions: 'support_questions',
-	};
-	const collection = collectionMap[type];
-	if (!collection) return null;
-	return await db.collection(collection).findOne({ _id: new ObjectId(id) });
-};
-
-// Проверка корректности photoFileId
-const isValidPhotoFileId = (fileId) => {
-	return (
-		typeof fileId === 'string' &&
-		fileId.length > 10 &&
-		/^Ag[A-Za-z0-9_-]+$/.test(fileId)
-	);
-};
 
 // Обработчик callback-запросов админ-панели
 const handleAdminCallback = async (ctx, action) => {
@@ -85,8 +63,7 @@ const handleAdminCallback = async (ctx, action) => {
 		await sendOrEditMessage(
 			ctx,
 			'У вас нет доступа к админ-панели.',
-			createAdminMenuKeyboard(),
-			true
+			createAdminMenuKeyboard()
 		);
 		await ctx.answerCallbackQuery();
 		return;
@@ -98,7 +75,6 @@ const handleAdminCallback = async (ctx, action) => {
 	let itemTypeLabel = '';
 	let title = 'Список элементов';
 
-	// Обработка выбора раздела или элемента
 	if (action === 'admin_reviews') {
 		items = await getPendingReviews();
 		type = 'reviews';
@@ -124,16 +100,13 @@ const handleAdminCallback = async (ctx, action) => {
 		itemTypeLabel = 'вопросов техподдержки';
 		title = 'Список вопросов технической поддержки';
 	} else if (action.startsWith('select_')) {
-		// Обработка выбора конкретного элемента
 		const [_, itemType, itemId] = action.split('_');
 		const item = await getItemById(itemType, itemId);
-		console.log(item);
 		if (!item) {
 			await sendOrEditMessage(
 				ctx,
 				'Элемент не найден.',
-				createAdminMenuKeyboard(),
-				true
+				createAdminMenuKeyboard()
 			);
 			await ctx.answerCallbackQuery();
 			logger.info(
@@ -147,35 +120,49 @@ const handleAdminCallback = async (ctx, action) => {
 			if (itemType === 'reviews') {
 				const message = formatItemFull(item, itemType);
 				keyboard = createReviewModerationKeyboard(itemId);
-				await sendOrEditMessage(ctx, message, keyboard, true);
+				await sendOrEditMessage(ctx, message, keyboard);
 			} else if (itemType === 'payments') {
-				if (!item.photoFileId) {
+				if (!item.gridFsFileId) {
 					await sendOrEditMessage(
 						ctx,
-						`Фото платежа не найдено или имеет неверный формат.\n${formatItemFull(
-							item,
-							itemType
-						)}`,
-						createAdminMenuKeyboard(),
-						true
+						`Фото платежа не найдено.\n${formatItemFull(item, itemType)}`,
+						createPaymentConfirmationKeyboard(itemId)
 					);
 				} else {
 					const caption = formatItemFull(item, itemType);
 					keyboard = createPaymentConfirmationKeyboard(itemId);
-					console.log(item.photoFileId);
-					await ctx.api.sendPhoto(ctx.chat.id, item.photoFileId, {
-						caption,
-						reply_markup: keyboard,
-					});
+					const photoStream = await getPaymentPhoto(item.gridFsFileId);
+					if (photoStream) {
+						await ctx.api.sendDocument(
+							ctx.chat.id,
+							{
+								source: photoStream,
+								filename: `payment_${itemId}.jpg`,
+							},
+							{
+								caption,
+								reply_markup: keyboard,
+							}
+						);
+					} else {
+						await sendOrEditMessage(
+							ctx,
+							`Фото платежа не найдено в хранилище.\n${formatItemFull(
+								item,
+								itemType
+							)}`,
+							keyboard
+						);
+					}
 				}
 			} else if (itemType === 'questions') {
 				const message = formatItemFull(item, itemType);
 				keyboard = createQuestionActionKeyboard(itemId);
-				await sendOrEditMessage(ctx, message, keyboard, true);
+				await sendOrEditMessage(ctx, message, keyboard);
 			} else if (itemType === 'support_questions') {
 				const message = formatItemFull(item, itemType);
 				keyboard = createSupportQuestionActionKeyboard(itemId);
-				await sendOrEditMessage(ctx, message, keyboard, true);
+				await sendOrEditMessage(ctx, message, keyboard);
 			}
 		} catch (error) {
 			logger.error(`Error processing ${itemType} with ID ${itemId}`, {
@@ -188,8 +175,7 @@ const handleAdminCallback = async (ctx, action) => {
 					item,
 					itemType
 				)}`,
-				keyboard || createAdminMenuKeyboard(),
-				true
+				keyboard || createAdminMenuKeyboard()
 			);
 		}
 
@@ -200,28 +186,24 @@ const handleAdminCallback = async (ctx, action) => {
 		await sendOrEditMessage(
 			ctx,
 			'Неизвестное действие.',
-			createAdminMenuKeyboard(),
-			true
+			createAdminMenuKeyboard()
 		);
 		await ctx.answerCallbackQuery();
 		logger.info(`Admin ${ctx.from.id} attempted unknown action: ${action}`);
 		return;
 	}
 
-	// Если нет элементов, отправляем сообщение об их отсутствии
 	if (!items.length) {
 		await sendOrEditMessage(
 			ctx,
 			`Нет ${itemTypeLabel} в обработке.`,
-			createAdminMenuKeyboard(),
-			true
+			createAdminMenuKeyboard()
 		);
 		await ctx.answerCallbackQuery();
 		logger.info(`Admin ${ctx.from.id} accessed ${action}: no items found`);
 		return;
 	}
 
-	// Формируем клавиатуру с кнопками, где текст кнопки совпадает с описанием элемента
 	const keyboard = new InlineKeyboard();
 	items.forEach((item) => {
 		const itemText = formatItemShort(item, type);
@@ -229,8 +211,7 @@ const handleAdminCallback = async (ctx, action) => {
 	});
 	keyboard.text('Назад', 'back_to_admin_menu');
 
-	// Отправляем сообщение с заголовком и клавиатурой
-	await sendOrEditMessage(ctx, title, keyboard, true);
+	await sendOrEditMessage(ctx, title, keyboard);
 	await ctx.answerCallbackQuery();
 	logger.info(
 		`Admin ${ctx.from.id} accessed ${action} with ${items.length} items`

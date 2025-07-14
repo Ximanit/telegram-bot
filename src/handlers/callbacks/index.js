@@ -65,6 +65,7 @@ const handleCallbackQuery = async (ctx) => {
 		action === 'admin_payments' ||
 		action === 'admin_questions' ||
 		action === 'admin_support_questions' ||
+		action === 'back_to_admin_menu' ||
 		action.startsWith('select_reviews_') ||
 		action.startsWith('select_payments_') ||
 		action.startsWith('select_questions_') ||

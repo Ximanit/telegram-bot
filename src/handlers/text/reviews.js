@@ -23,17 +23,17 @@ const handleReviewText = async (ctx) => {
 		);
 		return;
 	}
-	const review = await addReview(ctx.from.id, ctx.from.username, reviewText);
-	await ctx.api.sendMessage(
-		process.env.ADMIN_ID,
-		MESSAGES.reviewReceived
-			.replace('%username', ctx.from.username || `ID ${ctx.from.id}`)
-			.replace('%text', reviewText),
-		{
-			parse_mode: 'Markdown',
-			reply_markup: createReviewModerationKeyboard(review._id.toString()),
-		}
-	);
+	// const review = await addReview(ctx.from.id, ctx.from.username, reviewText);
+	// await ctx.api.sendMessage(
+	// 	process.env.ADMIN_ID,
+	// 	MESSAGES.reviewReceived
+	// 		.replace('%username', ctx.from.username || `ID ${ctx.from.id}`)
+	// 		.replace('%text', reviewText),
+	// 	{
+	// 		parse_mode: 'Markdown',
+	// 		reply_markup: createReviewModerationKeyboard(review._id.toString()),
+	// 	}
+	// );
 	ctx.session[SESSION_KEYS.AWAITING_REVIEW] = false;
 	ctx.session[SESSION_KEYS.LAST_ACTION] = null;
 	await sendOrEditMessage(

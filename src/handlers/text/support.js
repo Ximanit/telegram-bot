@@ -33,26 +33,26 @@ const handleSupportQuestionText = async (ctx) => {
 			return;
 		}
 
-		const userInfo = ctx.from.username
-			? `@${ctx.from.username}`
-			: `ID ${ctx.from.id}`;
-		const userName = ctx.from?.first_name || 'Пользователь';
+		// const userInfo = ctx.from.username
+		// 	? `@${ctx.from.username}`
+		// 	: `ID ${ctx.from.id}`;
+		// const userName = ctx.from?.first_name || 'Пользователь';
 		const newQuestion = await addSupportQuestion(
 			ctx.from.id,
 			ctx.from.username,
 			question
 		);
 
-		await ctx.api.sendMessage(
-			process.env.ADMIN_ID,
-			`Новый вопрос техподдержки от ${userInfo} (${userName}):\n${question}`,
-			{
-				parse_mode: 'Markdown',
-				reply_markup: createSupportQuestionActionKeyboard(
-					newQuestion._id.toString()
-				),
-			}
-		);
+		// await ctx.api.sendMessage(
+		// 	process.env.ADMIN_ID,
+		// 	`Новый вопрос техподдержки от ${userInfo} (${userName}):\n${question}`,
+		// 	{
+		// 		parse_mode: 'Markdown',
+		// 		reply_markup: createSupportQuestionActionKeyboard(
+		// 			newQuestion._id.toString()
+		// 		),
+		// 	}
+		// );
 
 		ctx.session[SESSION_KEYS.AWAITING_SUPPORT_QUESTION] = false;
 		ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID] =

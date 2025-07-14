@@ -92,27 +92,18 @@ bot.on('message:photo', async (ctx) => {
 	) {
 		try {
 			const photo = ctx.message.photo[ctx.message.photo.length - 1];
-			const photoFileId = await savePaymentPhoto(
-				photo.file_id,
+			const telegramFileId = photo.file_id; // Telegram file_id
+			const gridFsFileId = await savePaymentPhoto(
+				telegramFileId,
 				ctx.session[SESSION_KEYS.PAYMENT_ID],
 				ctx
 			);
 			await updatePaymentStatus(
 				ctx.session[SESSION_KEYS.PAYMENT_ID],
 				'pending',
-				photoFileId
+				telegramFileId, // Сохраняем Telegram file_id
+				gridFsFileId // Дополнительно сохраняем GridFS ID
 			);
-			await ctx.api.sendPhoto(process.env.ADMIN_ID, photo.file_id, {
-				caption: `Новый платеж от @${
-					ctx.from.username || `ID ${ctx.from.id}`
-				}\nСумма: ${ctx.session[SESSION_KEYS.CART].reduce(
-					(sum, item) => sum + item.price * item.quantity,
-					0
-				)} руб.`,
-				reply_markup: createPaymentConfirmationKeyboard(
-					ctx.session[SESSION_KEYS.PAYMENT_ID]
-				),
-			});
 			ctx.session[SESSION_KEYS.AWAITING_PAYMENT_PHOTO] = false;
 			ctx.session[SESSION_KEYS.PAYMENT_ID] = null;
 			await sendOrEditMessage(
@@ -125,6 +116,8 @@ bot.on('message:photo', async (ctx) => {
 				paymentId: ctx.session[SESSION_KEYS.PAYMENT_ID],
 				userId: ctx.from.id,
 				chatId: ctx.chat.id,
+				telegramFileId,
+				gridFsFileId,
 			});
 		} catch (error) {
 			logger.error('Ошибка обработки фото платежа', {

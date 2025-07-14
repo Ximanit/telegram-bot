@@ -51,7 +51,6 @@ const callbackHandlers = {
 			);
 			return;
 		}
-		console.log(reviewId);
 		const review = await updateReviewStatus(reviewId, false);
 		if (review) {
 			await ctx.answerCallbackQuery(MESSAGES.reviewRejected);

@@ -1,4 +1,4 @@
-const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
 const logger = require('./logger');
 require('dotenv').config();
 
@@ -94,10 +94,23 @@ async function updateLastMessageId(userId, messageId) {
 	logger.info(`Updated LAST_MESSAGE_ID for user ${userId}: ${messageId}`);
 }
 
+const getItemById = async (type, id) => {
+	const collectionMap = {
+		reviews: 'reviews',
+		payments: 'payments',
+		questions: 'questions',
+		support_questions: 'support_questions',
+	};
+	const collection = collectionMap[type];
+	if (!collection) return null;
+	return await db.collection(collection).findOne({ _id: new ObjectId(id) });
+};
+
 module.exports = {
 	connectDB,
 	closeDB,
 	updateSession,
 	getUserSession,
 	updateLastMessageId,
+	getItemById,
 };

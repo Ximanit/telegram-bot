@@ -54,44 +54,35 @@ async function addPayment(userId, username, cart, total) {
 }
 
 async function updatePaymentStatus(
-	_id,
+	paymentId,
 	status,
-	photoFileId = null,
-	rejectReason = null
+	telegramFileId,
+	gridFsFileId
 ) {
 	try {
 		const db = await connectDB();
-		const collection = db.collection('payments');
-		const paymentId = typeof _id === 'string' ? new ObjectId(_id) : _id;
-
-		const payment = await collection.findOne({ _id: paymentId });
-		if (!payment) {
-			logger.warn('Payment not found', { paymentId });
-			return null;
-		}
-
-		const updateFields = { status };
-		if (photoFileId) updateFields.photoFileId = photoFileId;
-		if (rejectReason) updateFields.rejectReason = rejectReason;
-
-		const result = await collection.updateOne(
-			{ _id: paymentId },
-			{ $set: updateFields }
-		);
-
+		const result = await db
+			.collection('payments')
+			.updateOne(
+				{ _id: new ObjectId(paymentId) },
+				{ $set: { status, telegramFileId, gridFsFileId } }
+			);
 		if (result.matchedCount === 0) {
-			logger.warn('Payment not found during update', { paymentId });
-			return null;
+			logger.warn('Payment not found for status update', { paymentId });
+			return false;
 		}
-
-		const updatedPayment = await collection.findOne({ _id: paymentId });
-		logger.info('Payment updated', { paymentId, status });
-		return updatedPayment;
+		logger.info('Payment status updated', {
+			paymentId,
+			status,
+			telegramFileId,
+			gridFsFileId,
+		});
+		return true;
 	} catch (error) {
-		logger.error('Ошибка обновления статуса платежа в MongoDB', {
+		logger.error('Ошибка обновления статуса платежа', {
 			error: error.message,
 			stack: error.stack,
-			paymentId: _id,
+			paymentId,
 		});
 		throw error;
 	}
@@ -150,10 +141,33 @@ async function getPendingPayments() {
 	}
 }
 
+async function getPaymentPhoto(gridFsFileId) {
+	try {
+		const db = await connectDB();
+		const bucket = new GridFSBucket(db, { bucketName: 'payment_photos' });
+		const file = await bucket
+			.find({ _id: new ObjectId(gridFsFileId) })
+			.toArray();
+		if (!file.length) {
+			logger.warn('Photo not found in GridFS', { gridFsFileId });
+			return null;
+		}
+		return bucket.openDownloadStream(new ObjectId(gridFsFileId));
+	} catch (error) {
+		logger.error('Ошибка получения фото из GridFS', {
+			error: error.message,
+			stack: error.stack,
+			gridFsFileId,
+		});
+		throw error;
+	}
+}
+
 module.exports = {
 	addPayment,
 	updatePaymentStatus,
 	getPayments,
 	savePaymentPhoto,
 	getPendingPayments,
+	getPaymentPhoto,
 };
