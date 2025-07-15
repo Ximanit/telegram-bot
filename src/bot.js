@@ -92,8 +92,8 @@ bot.on('message:photo', async (ctx) => {
 	) {
 		try {
 			const photo = ctx.message.photo[ctx.message.photo.length - 1];
-			const telegramFileId = photo.file_id; // Telegram file_id
-			const gridFsFileId = await savePaymentPhoto(
+			const telegramFileId = photo.file_id;
+			const savedFileId = await savePaymentPhoto(
 				telegramFileId,
 				ctx.session[SESSION_KEYS.PAYMENT_ID],
 				ctx
@@ -101,8 +101,7 @@ bot.on('message:photo', async (ctx) => {
 			await updatePaymentStatus(
 				ctx.session[SESSION_KEYS.PAYMENT_ID],
 				'pending',
-				telegramFileId, // Сохраняем Telegram file_id
-				gridFsFileId // Дополнительно сохраняем GridFS ID
+				savedFileId
 			);
 			ctx.session[SESSION_KEYS.AWAITING_PAYMENT_PHOTO] = false;
 			ctx.session[SESSION_KEYS.PAYMENT_ID] = null;
@@ -117,7 +116,6 @@ bot.on('message:photo', async (ctx) => {
 				userId: ctx.from.id,
 				chatId: ctx.chat.id,
 				telegramFileId,
-				gridFsFileId,
 			});
 		} catch (error) {
 			logger.error('Ошибка обработки фото платежа', {

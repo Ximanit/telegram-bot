@@ -55,15 +55,14 @@ const formatItemFull = (item, type) => {
 	}
 };
 
-// Унифицированная функция для получения элемента по ID
-
 // Обработчик callback-запросов админ-панели
 const handleAdminCallback = async (ctx, action) => {
 	if (ctx.from.id.toString() !== process.env.ADMIN_ID) {
 		await sendOrEditMessage(
 			ctx,
 			'У вас нет доступа к админ-панели.',
-			createAdminMenuKeyboard()
+			createAdminMenuKeyboard(),
+			true
 		);
 		await ctx.answerCallbackQuery();
 		return;
@@ -106,7 +105,8 @@ const handleAdminCallback = async (ctx, action) => {
 			await sendOrEditMessage(
 				ctx,
 				'Элемент не найден.',
-				createAdminMenuKeyboard()
+				createAdminMenuKeyboard(),
+				true
 			);
 			await ctx.answerCallbackQuery();
 			logger.info(
@@ -120,49 +120,106 @@ const handleAdminCallback = async (ctx, action) => {
 			if (itemType === 'reviews') {
 				const message = formatItemFull(item, itemType);
 				keyboard = createReviewModerationKeyboard(itemId);
-				await sendOrEditMessage(ctx, message, keyboard);
-			} else if (itemType === 'payments') {
-				if (!item.gridFsFileId) {
+				await sendOrEditMessage(ctx, message, keyboard, true);
+			} else if (action.startsWith('select_')) {
+				const [_, itemType, itemId] = action.split('_');
+				const item = await getItemById(itemType, itemId);
+				if (!item) {
 					await sendOrEditMessage(
 						ctx,
-						`Фото платежа не найдено.\n${formatItemFull(item, itemType)}`,
-						createPaymentConfirmationKeyboard(itemId)
+						'Элемент не найден.',
+						createAdminMenuKeyboard(),
+						true
 					);
-				} else {
-					const caption = formatItemFull(item, itemType);
-					keyboard = createPaymentConfirmationKeyboard(itemId);
-					const photoStream = await getPaymentPhoto(item.gridFsFileId);
-					if (photoStream) {
-						await ctx.api.sendDocument(
-							ctx.chat.id,
-							{
-								source: photoStream,
-								filename: `payment_${itemId}.jpg`,
-							},
-							{
-								caption,
-								reply_markup: keyboard,
-							}
-						);
-					} else {
-						await sendOrEditMessage(
-							ctx,
-							`Фото платежа не найдено в хранилище.\n${formatItemFull(
-								item,
-								itemType
-							)}`,
-							keyboard
-						);
-					}
+					await ctx.answerCallbackQuery();
+					logger.info(
+						`Admin ${ctx.from.id} attempted to select non-existent item: ${action}`
+					);
+					return;
 				}
+
+				let keyboard;
+				try {
+					if (itemType === 'reviews') {
+						const message = formatItemFull(item, itemType);
+						keyboard = createReviewModerationKeyboard(itemId);
+						await sendOrEditMessage(ctx, message, keyboard, true);
+					} else if (itemType === 'payments') {
+						const caption = formatItemFull(item, itemType);
+						keyboard = createPaymentConfirmationKeyboard(itemId);
+						logger.info(`Attempting to send payment photo`, {
+							paymentId: itemId,
+							telegramFileId: item.telegramFileId,
+						});
+
+						if (item.telegramFileId) {
+							try {
+								await ctx.api.sendPhoto(ctx.chat.id, item.telegramFileId, {
+									caption,
+									reply_markup: keyboard,
+								});
+								logger.info(`Sent payment photo using telegramFileId`, {
+									paymentId: itemId,
+									telegramFileId: item.telegramFileId,
+								});
+							} catch (photoError) {
+								logger.warn(`Failed to send photo with telegramFileId`, {
+									paymentId: itemId,
+									error: photoError.message,
+								});
+								await sendOrEditMessage(
+									ctx,
+									`Не удалось загрузить фото платежа.\n${caption}`,
+									keyboard,
+									true
+								);
+							}
+						} else {
+							await sendOrEditMessage(
+								ctx,
+								`Фото платежа не найдено.\n${caption}`,
+								keyboard,
+								true
+							);
+						}
+					} else if (itemType === 'questions') {
+						const message = formatItemFull(item, itemType);
+						keyboard = createQuestionActionKeyboard(itemId);
+						await sendOrEditMessage(ctx, message, keyboard, true);
+					} else if (itemType === 'support_questions') {
+						const message = formatItemFull(item, itemType);
+						keyboard = createSupportQuestionActionKeyboard(itemId);
+						await sendOrEditMessage(ctx, message, keyboard, true);
+					}
+				} catch (error) {
+					logger.error(`Error processing ${itemType} with ID ${itemId}`, {
+						error: error.message,
+						stack: error.stack,
+					});
+					await sendOrEditMessage(
+						ctx,
+						`Произошла ошибка при обработке элемента.\n${formatItemFull(
+							item,
+							itemType
+						)}`,
+						keyboard || createAdminMenuKeyboard(),
+						true
+					);
+				}
+
+				await ctx.answerCallbackQuery();
+				logger.info(
+					`Admin ${ctx.from.id} selected ${itemType} with ID ${itemId}`
+				);
+				return;
 			} else if (itemType === 'questions') {
 				const message = formatItemFull(item, itemType);
 				keyboard = createQuestionActionKeyboard(itemId);
-				await sendOrEditMessage(ctx, message, keyboard);
+				await sendOrEditMessage(ctx, message, keyboard, true);
 			} else if (itemType === 'support_questions') {
 				const message = formatItemFull(item, itemType);
 				keyboard = createSupportQuestionActionKeyboard(itemId);
-				await sendOrEditMessage(ctx, message, keyboard);
+				await sendOrEditMessage(ctx, message, keyboard, true);
 			}
 		} catch (error) {
 			logger.error(`Error processing ${itemType} with ID ${itemId}`, {
@@ -175,7 +232,8 @@ const handleAdminCallback = async (ctx, action) => {
 					item,
 					itemType
 				)}`,
-				keyboard || createAdminMenuKeyboard()
+				keyboard || createAdminMenuKeyboard(),
+				true
 			);
 		}
 
@@ -186,7 +244,8 @@ const handleAdminCallback = async (ctx, action) => {
 		await sendOrEditMessage(
 			ctx,
 			'Неизвестное действие.',
-			createAdminMenuKeyboard()
+			createAdminMenuKeyboard(),
+			true
 		);
 		await ctx.answerCallbackQuery();
 		logger.info(`Admin ${ctx.from.id} attempted unknown action: ${action}`);
@@ -197,7 +256,8 @@ const handleAdminCallback = async (ctx, action) => {
 		await sendOrEditMessage(
 			ctx,
 			`Нет ${itemTypeLabel} в обработке.`,
-			createAdminMenuKeyboard()
+			createAdminMenuKeyboard(),
+			true
 		);
 		await ctx.answerCallbackQuery();
 		logger.info(`Admin ${ctx.from.id} accessed ${action}: no items found`);
@@ -211,7 +271,7 @@ const handleAdminCallback = async (ctx, action) => {
 	});
 	keyboard.text('Назад', 'back_to_admin_menu');
 
-	await sendOrEditMessage(ctx, title, keyboard);
+	await sendOrEditMessage(ctx, title, keyboard, true);
 	await ctx.answerCallbackQuery();
 	logger.info(
 		`Admin ${ctx.from.id} accessed ${action} with ${items.length} items`
