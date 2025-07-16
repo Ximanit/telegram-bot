@@ -37,39 +37,34 @@ const sendOrEditMessage = async (ctx, text, keyboard, forceNew = false) => {
 		const chatId = ctx.chat.id;
 		const lastMessageId = ctx.session[SESSION_KEYS.LAST_MESSAGE_ID]?.[chatId];
 		logger.info(
-			`Attempting to send/edit message for chat ${chatId}, lastMessageId: ${lastMessageId}, forceNew: ${forceNew}`
+			`Attempting to send/delete message for chat ${chatId}, lastMessageId: ${lastMessageId}, forceNew: ${forceNew}`
 		);
 
 		let sentMessage;
 		if (lastMessageId && !forceNew) {
 			try {
-				sentMessage = await ctx.api.editMessageText(
-					chatId,
-					lastMessageId,
-					text,
-					{
-						parse_mode: 'Markdown',
-						reply_markup: keyboard,
-					}
-				);
-				logger.info(`Edited message ${lastMessageId} in chat ${chatId}`);
+				// Удаляем старое сообщение
+				await ctx.api.deleteMessage(chatId, lastMessageId);
+				logger.info(`Deleted message ${lastMessageId} in chat ${chatId}`);
 			} catch (error) {
 				logger.warn(
-					`Failed to edit message ${lastMessageId} in chat ${chatId}: ${error.message}`
-				);
-				sentMessage = await ctx.api.sendMessage(chatId, text, {
-					parse_mode: 'Markdown',
-					reply_markup: keyboard,
-				});
-				ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] =
-					ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] || {};
-				ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][chatId] =
-					sentMessage.message_id;
-				logger.info(
-					`Sent new message ${sentMessage.message_id} in chat ${chatId} due to edit failure`
+					`Failed to delete message ${lastMessageId} in chat ${chatId}: ${error.message}`
 				);
 			}
+			// Отправляем новое сообщение
+			sentMessage = await ctx.api.sendMessage(chatId, text, {
+				parse_mode: 'Markdown',
+				reply_markup: keyboard,
+			});
+			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] =
+				ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] || {};
+			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][chatId] =
+				sentMessage.message_id;
+			logger.info(
+				`Sent new message ${sentMessage.message_id} in chat ${chatId} after deletion`
+			);
 		} else {
+			// Логика отправки нового сообщения остается без изменений
 			sentMessage = await ctx.api.sendMessage(chatId, text, {
 				parse_mode: 'Markdown',
 				reply_markup: keyboard,

@@ -55,11 +55,11 @@ const handleQuestionText = async (ctx) => {
 		// 	? `@${ctx.from.username}`
 		// 	: `ID ${ctx.from.id}`;
 		// const userName = ctx.from?.first_name || 'Пользователь';
-		// const newQuestion = await addQuestion(
-		// 	ctx.from.id,
-		// 	ctx.from.username,
-		// 	question
-		// );
+		const newQuestion = await addQuestion(
+			ctx.from.id,
+			ctx.from.username,
+			question
+		);
 
 		// await ctx.api.sendMessage(
 		// 	process.env.ADMIN_ID,
