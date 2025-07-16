@@ -78,16 +78,16 @@ const handleSupportQuestionText = async (ctx) => {
 				: `ID ${ctx.from.id}`;
 			const userName = ctx.from?.first_name || 'Пользователь';
 			await addSupportDialogueMessage(question._id, 'user', ctx.message.text);
-			await ctx.api.sendMessage(
-				process.env.ADMIN_ID,
-				`Сообщение от ${userInfo} (${userName}) по вопросу техподдержки #${question._id}:\n${ctx.message.text}`,
-				{
-					parse_mode: 'Markdown',
-					reply_markup: createSupportQuestionActionKeyboard(
-						question._id.toString()
-					),
-				}
-			);
+			// await ctx.api.sendMessage(
+			// 	process.env.ADMIN_ID,
+			// 	`Сообщение от ${userInfo} (${userName}) по вопросу техподдержки #${question._id}:\n${ctx.message.text}`,
+			// 	{
+			// 		parse_mode: 'Markdown',
+			// 		reply_markup: createSupportQuestionActionKeyboard(
+			// 			question._id.toString()
+			// 		),
+			// 	}
+			// );
 			const sentMessage = await sendOrEditMessage(
 				ctx,
 				MESSAGES.dialogueMessageSent,
