@@ -151,9 +151,8 @@ const handleAdminCallback = async (ctx, action) => {
 
 						if (item.telegramFileId) {
 							try {
-								await ctx.api.sendPhoto(ctx.chat.id, item.telegramFileId, {
-									caption,
-									reply_markup: keyboard,
+								await sendOrEditMessage(ctx, caption, keyboard, false, {
+									photo: item.telegramFileId,
 								});
 								logger.info(`Sent payment photo using telegramFileId`, {
 									paymentId: itemId,

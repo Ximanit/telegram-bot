@@ -36,6 +36,7 @@ const handleCallbackQuery = async (ctx) => {
 		action === 'back_to_menu' ||
 		action === 'back_to_price' ||
 		action === 'back_from_payment_photo' ||
+		action === 'back_to_admin_menu' ||
 		action === 'show_terms' ||
 		action === 'show_price' ||
 		action === 'show_profile'
@@ -65,7 +66,6 @@ const handleCallbackQuery = async (ctx) => {
 		action === 'admin_payments' ||
 		action === 'admin_questions' ||
 		action === 'admin_support_questions' ||
-		action === 'back_to_admin_menu' ||
 		action.startsWith('select_reviews_') ||
 		action.startsWith('select_payments_') ||
 		action.startsWith('select_questions_') ||

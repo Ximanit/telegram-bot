@@ -32,7 +32,13 @@ const handleError = async (err, ctx, additionalInfo = {}) => {
 	}
 };
 
-const sendOrEditMessage = async (ctx, text, keyboard, forceNew = false) => {
+const sendOrEditMessage = async (
+	ctx,
+	text,
+	keyboard,
+	forceNew = false,
+	options = {}
+) => {
 	try {
 		const chatId = ctx.chat.id;
 		const lastMessageId = ctx.session[SESSION_KEYS.LAST_MESSAGE_ID]?.[chatId];
@@ -43,7 +49,6 @@ const sendOrEditMessage = async (ctx, text, keyboard, forceNew = false) => {
 		let sentMessage;
 		if (lastMessageId && !forceNew) {
 			try {
-				// Удаляем старое сообщение
 				await ctx.api.deleteMessage(chatId, lastMessageId);
 				logger.info(`Deleted message ${lastMessageId} in chat ${chatId}`);
 			} catch (error) {
@@ -51,34 +56,43 @@ const sendOrEditMessage = async (ctx, text, keyboard, forceNew = false) => {
 					`Failed to delete message ${lastMessageId} in chat ${chatId}: ${error.message}`
 				);
 			}
-			// Отправляем новое сообщение
-			sentMessage = await ctx.api.sendMessage(chatId, text, {
+		}
+
+		// Проверяем, есть ли фото в опциях
+		if (options.photo) {
+			sentMessage = await ctx.api.sendPhoto(chatId, options.photo, {
+				caption: text,
 				parse_mode: 'Markdown',
 				reply_markup: keyboard,
 			});
-			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] =
-				ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] || {};
-			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][chatId] =
-				sentMessage.message_id;
-			logger.info(
-				`Sent new message ${sentMessage.message_id} in chat ${chatId} after deletion`
-			);
 		} else {
-			// Логика отправки нового сообщения остается без изменений
 			sentMessage = await ctx.api.sendMessage(chatId, text, {
 				parse_mode: 'Markdown',
 				reply_markup: keyboard,
 			});
-			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] =
-				ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] || {};
-			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][chatId] =
-				sentMessage.message_id;
-			logger.info(
-				`Sent new message ${sentMessage.message_id} in chat ${chatId}${
-					forceNew ? ' (forced new)' : ''
-				}`
+		}
+
+		ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] =
+			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] || {};
+		ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][chatId] = sentMessage.message_id;
+
+		try {
+			await updateLastMessageId(ctx.from.id, sentMessage.message_id);
+			logger.info(`Saved lastMessageId to MongoDB for user ${ctx.from.id}`);
+		} catch (saveError) {
+			logger.error(
+				`Failed to save lastMessageId to MongoDB: ${saveError.message}`,
+				{
+					stack: saveError.stack,
+				}
 			);
 		}
+
+		logger.info(
+			`Sent new message ${sentMessage.message_id} in chat ${chatId}${
+				forceNew ? ' (forced new)' : ''
+			}`
+		);
 
 		return sentMessage;
 	} catch (error) {
@@ -106,7 +120,7 @@ const sendMessageToUser = async (userId, text, keyboard, ctx) => {
 		answerCallbackQuery: () => {},
 	};
 	const sentMessage = await sendOrEditMessage(userCtx, text, keyboard);
-	await updateLastMessageId(userId, userId, sentMessage.message_id);
+	await updateLastMessageId(userId, sentMessage.message_id);
 };
 
 module.exports = {
