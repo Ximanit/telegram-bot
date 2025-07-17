@@ -47,9 +47,16 @@ const formatItemFull = (item, type) => {
 		case 'payments':
 			return `Платеж от @${username}\nСумма: ${item.total} руб.`;
 		case 'questions':
-			return `Вопрос от @${username}:\n${item.text}`;
+			let message = `Вопрос от @${username}:\n${item.text}\n\nДиалог:\n`;
+			item.dialogue.forEach((msg, index) => {
+				message += `${index + 1}. ${msg.sender}: ${msg.message}\n`;
+			});
+			return message;
 		case 'support_questions':
-			return `Вопрос техподдержки от @${username}:\n${item.text}`;
+			let support_message = `Вопрос от @${username}:\n${item.text}\n\nДиалог:\n`;
+			item.dialogue.forEach((msg, index) => {
+				support_message += `${index + 1}. ${msg.sender}: ${msg.message}\n`;
+			});
 		default:
 			return '';
 	}
