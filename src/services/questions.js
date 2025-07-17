@@ -6,10 +6,10 @@ async function getQuestions() {
 	try {
 		const db = await connectDB();
 		const questions = await db.collection('questions').find({}).toArray();
-		logger.info(`Fetched ${questions.length} questions from MongoDB`);
+		logger.info(`Получено ${questions.length} вопросов из MongoDB`);
 		return questions;
 	} catch (error) {
-		logger.error('Ошибка чтения вопросов из MongoDB:', {
+		logger.error('Ошибка чтения вопросов из MongoDB', {
 			error: error.message,
 			stack: error.stack,
 		});
@@ -30,11 +30,11 @@ async function addQuestion(userId, username, text) {
 		};
 		const result = await db.collection('questions').insertOne(newQuestion);
 		logger.info(
-			`Added question by user ${userId}: ${text}, _id: ${result.insertedId}`
+			`Добавлен вопрос от пользователя ${userId}: ${text}, _id: ${result.insertedId}`
 		);
 		return { ...newQuestion, _id: result.insertedId };
 	} catch (error) {
-		logger.error('Ошибка добавления вопроса в MongoDB:', {
+		logger.error('Ошибка добавления вопроса в MongoDB', {
 			error: error.message,
 			stack: error.stack,
 		});
@@ -51,7 +51,7 @@ async function updateQuestionStatus(_id, status, rejectReason = null) {
 			.collection('questions')
 			.findOne({ _id: questionId });
 		if (!question) {
-			logger.warn(`Question with _id ${_id} not found`);
+			logger.warn(`Вопрос с _id ${_id} не найден`);
 			return null;
 		}
 
@@ -63,17 +63,17 @@ async function updateQuestionStatus(_id, status, rejectReason = null) {
 			.updateOne({ _id: questionId }, { $set: updateFields });
 
 		if (result.matchedCount === 0) {
-			logger.warn(`Question with _id ${_id} not found during update`);
+			logger.warn(`Вопрос с _id ${_id} не найден при обновлении`);
 			return null;
 		}
 
 		const updatedQuestion = await db
 			.collection('questions')
 			.findOne({ _id: questionId });
-		logger.info(`Question ${_id} updated, status: ${status}`);
+		logger.info(`Вопрос ${_id} обновлен, статус: ${status}`);
 		return updatedQuestion;
 	} catch (error) {
-		logger.error('Ошибка обновления статуса вопроса в MongoDB:', {
+		logger.error('Ошибка обновления статуса вопроса в MongoDB', {
 			error: error.message,
 			stack: error.stack,
 		});
@@ -90,7 +90,7 @@ async function addDialogueMessage(_id, sender, message) {
 			.collection('questions')
 			.findOne({ _id: questionId });
 		if (!question) {
-			logger.warn(`Question with _id ${_id} not found`);
+			logger.warn(`Вопрос с _id ${_id} не найден`);
 			return null;
 		}
 
@@ -108,17 +108,17 @@ async function addDialogueMessage(_id, sender, message) {
 		);
 
 		if (result.matchedCount === 0) {
-			logger.warn(`Question with _id ${_id} not found during update`);
+			logger.warn(`Вопрос с _id ${_id} не найден при обновлении`);
 			return null;
 		}
 
 		const updatedQuestion = await db
 			.collection('questions')
 			.findOne({ _id: questionId });
-		logger.info(`Added dialogue message to question ${_id} by ${sender}`);
+		logger.info(`Добавлено сообщение в диалог вопроса ${_id} от ${sender}`);
 		return updatedQuestion;
 	} catch (error) {
-		logger.error('Ошибка добавления сообщения в диалог вопроса:', {
+		logger.error('Ошибка добавления сообщения в диалог вопроса', {
 			error: error.message,
 			stack: error.stack,
 		});
@@ -133,12 +133,10 @@ async function getProcessingQuestions() {
 			.collection('questions')
 			.find({ status: { $in: ['pending', 'in_progress'] } })
 			.toArray();
-		logger.info(
-			`Fetched ${questions.length} processing questions from MongoDB`
-		);
+		logger.info(`Получено ${questions.length} вопросов в обработке из MongoDB`);
 		return questions;
 	} catch (error) {
-		logger.error('Ошибка чтения processing вопросов из MongoDB:', {
+		logger.error('Ошибка чтения вопросов в обработке из MongoDB', {
 			error: error.message,
 			stack: error.stack,
 		});

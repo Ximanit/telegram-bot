@@ -50,7 +50,7 @@ async function updatePaymentStatus(
 
 		const payment = await collection.findOne({ _id: paymentId });
 		if (!payment) {
-			logger.warn('Payment not found', { paymentId });
+			logger.warn('Платеж не найден', { paymentId });
 			return null;
 		}
 
@@ -64,12 +64,12 @@ async function updatePaymentStatus(
 		);
 
 		if (result.matchedCount === 0) {
-			logger.warn('Payment not found during update', { paymentId });
+			logger.warn('Платеж не найден при обновлении', { paymentId });
 			return null;
 		}
 
 		const updatedPayment = await collection.findOne({ _id: paymentId });
-		logger.info('Payment updated', {
+		logger.info('Платеж обновлен', {
 			paymentId,
 			status,
 			telegramFileId,
@@ -89,7 +89,9 @@ async function getPayments() {
 	try {
 		const db = await connectDB();
 		const payments = await db.collection('payments').find({}).toArray();
-		logger.info('Fetched payments', { count: payments.length });
+		logger.info(`Получено ${payments.length} платежей`, {
+			count: payments.length,
+		});
 		return payments;
 	} catch (error) {
 		logger.error('Ошибка чтения платежей из MongoDB', {
@@ -107,10 +109,10 @@ async function getPendingPayments() {
 			.collection('payments')
 			.find({ status: 'pending' })
 			.toArray();
-		logger.info(`Fetched ${payments.length} pending payments from MongoDB`);
+		logger.info(`Получено ${payments.length} ожидающих платежей из MongoDB`);
 		return payments;
 	} catch (error) {
-		logger.error('Ошибка чтения pending платежей из MongoDB:', {
+		logger.error('Ошибка чтения ожидающих платежей из MongoDB', {
 			error: error.message,
 			stack: error.stack,
 		});
@@ -120,11 +122,11 @@ async function getPendingPayments() {
 
 async function savePaymentPhoto(fileId, paymentId, ctx) {
 	try {
-		logger.info('Saved payment photo with telegramFileId', {
+		logger.info('Фото платежа сохранено', {
 			paymentId,
 			telegramFileId: fileId,
 		});
-		return fileId; // Simply return the telegramFileId
+		return fileId;
 	} catch (error) {
 		logger.error('Ошибка сохранения фото платежа', {
 			error: error.message,

@@ -20,6 +20,7 @@ const handleCallbackQuery = async (ctx) => {
 		);
 		ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
 			sentMessage.message_id;
+		logger.info(`Пользователь ${ctx.chat.id} начал ввод вопроса`);
 		await ctx.answerCallbackQuery();
 	} else if (action === 'confirm_cancel_reject') {
 		ctx.session[SESSION_KEYS.AWAITING_REJECT_REASON] = false;
@@ -38,7 +39,7 @@ const handleCallbackQuery = async (ctx) => {
 		ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
 			sentMessage.message_id;
 		logger.info(
-			`User ${ctx.chat.id} confirmed cancellation of rejection input`
+			`Пользователь ${ctx.chat.id} подтвердил отмену ввода причины отклонения`
 		);
 		await ctx.answerCallbackQuery();
 	} else if (action === 'continue_input') {
@@ -53,7 +54,9 @@ const handleCallbackQuery = async (ctx) => {
 		ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
 			sentMessage.message_id;
 		ctx.session[SESSION_KEYS.LAST_ACTION] = null;
-		logger.info(`User ${ctx.chat.id} continued rejection input`);
+		logger.info(
+			`Пользователь ${ctx.chat.id} продолжил ввод причины отклонения`
+		);
 		await ctx.answerCallbackQuery();
 	} else {
 		await handleSpecificCallback(ctx);

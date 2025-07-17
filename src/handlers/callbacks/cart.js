@@ -15,7 +15,6 @@ const {
 } = require('../../services/cart');
 const { addPayment, updatePaymentStatus } = require('../../services/payments');
 const { getUserSession, updateSession } = require('../../db');
-const logger = require('../../logger');
 
 const handleCartCallback = async (ctx, action, userName) => {
 	if (action.startsWith('add_to_cart_')) {

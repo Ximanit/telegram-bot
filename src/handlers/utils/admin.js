@@ -13,7 +13,7 @@ const handleAdminAnswer = async (ctx, questionId, answer, config) => {
 			config.backKeyboard,
 			true
 		);
-		logger.error(`${collection} ${questionId} not found for answering`);
+		logger.error(`${collection} ${questionId} не найдено для ответа`);
 		return;
 	}
 
@@ -32,7 +32,7 @@ const handleAdminAnswer = async (ctx, questionId, answer, config) => {
 	);
 	ctx.session[SESSION_KEYS.AWAITING_ANSWER] = false;
 	logger.info(
-		`Admin answered ${collection} ${questionId} for user ${question.userId}`
+		`Администратор дал ответ ${collection} ${questionId} для пользователя ${question.userId}`
 	);
 };
 

@@ -91,7 +91,9 @@ async function updateLastMessageId(userId, messageId) {
 			[userId]: messageId,
 		},
 	});
-	logger.info(`Updated LAST_MESSAGE_ID for user ${userId}: ${messageId}`);
+	logger.info(
+		`Обновление LAST_MESSAGE_ID для пользователя ${userId}: ${messageId}`
+	);
 }
 
 const getItemById = async (type, id) => {

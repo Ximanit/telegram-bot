@@ -2,7 +2,6 @@ const {
 	createStartKeyboard,
 	createPriceKeyboard,
 	createBackKeyboard,
-	createCartKeyboard,
 	createAdminMenuKeyboard,
 } = require('../../keyboards');
 const { MESSAGES, SESSION_KEYS } = require('../../constants');
@@ -26,14 +25,14 @@ const callbackHandlers = {
 			ctx.session[SESSION_KEYS.AWAITING_SUPPORT_ANSWER] = false;
 			ctx.session[SESSION_KEYS.LAST_ACTION] = null;
 		},
-		logMessage: (ctx) => `User ${ctx.chat.id} returned to main menu`,
+		logMessage: (ctx) => `Пользователь ${ctx.chat.id} вернулся в главное меню`,
 	},
 
 	// Возврат в админ-панель
 	back_to_admin_menu: {
 		text: () => 'Добро пожаловать в админ-панель!\nВыберите раздел:',
 		keyboard: () => createAdminMenuKeyboard(),
-		logMessage: (ctx) => `Admin ${ctx.chat.id} returned to admin menu`,
+		logMessage: (ctx) => `Администратор ${ctx.chat.id} вернулся в админ-панель`,
 	},
 
 	// Показ личного кабинета
@@ -46,7 +45,7 @@ const callbackHandlers = {
 			return currentMessage;
 		},
 		keyboard: () => createBackKeyboard(),
-		logMessage: (ctx) => `User ${ctx.chat.id} viewed profile`,
+		logMessage: (ctx) => `Пользователь ${ctx.chat.id} просмотрел профиль`,
 	},
 
 	// Возврат к прайс-листу
@@ -57,14 +56,15 @@ const callbackHandlers = {
 				: MESSAGES.cartEmpty;
 		},
 		keyboard: () => createPriceKeyboard(),
-		logMessage: (ctx) => `User ${ctx.chat.id} returned to price menu`,
+		logMessage: (ctx) =>
+			`Пользователь ${ctx.chat.id} вернулся в меню прайс-листа`,
 	},
 
 	// Показ условий
 	show_terms: {
 		text: MESSAGES.terms,
 		keyboard: () => createBackKeyboard(),
-		logMessage: (ctx) => `User ${ctx.chat.id} viewed terms`,
+		logMessage: (ctx) => `Пользователь ${ctx.chat.id} просмотрел условия`,
 	},
 
 	// Показ прайс-листа
@@ -75,7 +75,7 @@ const callbackHandlers = {
 				: MESSAGES.cartEmpty;
 		},
 		keyboard: () => createPriceKeyboard(),
-		logMessage: (ctx) => `User ${ctx.chat.id} viewed price menu`,
+		logMessage: (ctx) => `Пользователь ${ctx.chat.id} просмотрел прайс-лист`,
 	},
 
 	// Обработка кнопки "Назад" при вводе вопроса
@@ -87,7 +87,7 @@ const callbackHandlers = {
 			ctx.session[SESSION_KEYS.AWAITING_QUESTION] = false;
 			ctx.session[SESSION_KEYS.LAST_ACTION] = null;
 		},
-		logMessage: (ctx) => `User ${ctx.chat.id} cancelled question input`,
+		logMessage: (ctx) => `Пользователь ${ctx.chat.id} отменил ввод вопроса`,
 	},
 
 	// Обработка кнопки "Назад" при вводе отзыва
@@ -99,7 +99,7 @@ const callbackHandlers = {
 			ctx.session[SESSION_KEYS.AWAITING_REVIEW] = false;
 			ctx.session[SESSION_KEYS.LAST_ACTION] = null;
 		},
-		logMessage: (ctx) => `User ${ctx.chat.id} cancelled review input`,
+		logMessage: (ctx) => `Пользователь ${ctx.chat.id} отменил ввод отзыва`,
 	},
 
 	// Обработка кнопки "Назад" при загрузке фото платежа
@@ -119,7 +119,8 @@ const callbackHandlers = {
 			ctx.session[SESSION_KEYS.PAYMENT_ID] = null;
 			ctx.session[SESSION_KEYS.LAST_ACTION] = null;
 		},
-		logMessage: (ctx) => `User ${ctx.chat.id} cancelled payment photo upload`,
+		logMessage: (ctx) =>
+			`Пользователь ${ctx.chat.id} отменил загрузку фото платежа`,
 	},
 
 	// Обработка кнопки "Назад" при вводе ответа администратором
@@ -131,7 +132,7 @@ const callbackHandlers = {
 			ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = null;
 			ctx.session[SESSION_KEYS.LAST_ACTION] = null;
 		},
-		logMessage: (ctx) => `Admin ${ctx.chat.id} cancelled answer input`,
+		logMessage: (ctx) => `Администратор ${ctx.chat.id} отменил ввод ответа`,
 	},
 
 	// Обработка кнопки "Назад" при вводе причины отклонения вопроса
@@ -143,7 +144,7 @@ const callbackHandlers = {
 				.text('Да, отменить', 'confirm_cancel_reject')
 				.text('Продолжить ввод', 'continue_input'),
 		logMessage: (ctx) =>
-			`Admin ${ctx.chat.id} pressed Back during reject reason input`,
+			`Администратор ${ctx.chat.id} нажал "Назад" при вводе причины отклонения вопроса`,
 	},
 
 	// Обработка кнопки "Назад" при вводе причины отклонения платежа
@@ -155,7 +156,7 @@ const callbackHandlers = {
 				.text('Да, отменить', 'confirm_cancel_reject')
 				.text('Продолжить ввод', 'continue_input'),
 		logMessage: (ctx) =>
-			`Admin ${ctx.chat.id} pressed Back during reject payment reason input`,
+			`Администратор ${ctx.chat.id} нажал "Назад" при вводе причины отклонения платежа`,
 	},
 
 	// Обработка кнопки "Назад" при вводе вопроса техподдержки
@@ -167,7 +168,8 @@ const callbackHandlers = {
 			ctx.session[SESSION_KEYS.AWAITING_SUPPORT_QUESTION] = false;
 			ctx.session[SESSION_KEYS.LAST_ACTION] = null;
 		},
-		logMessage: (ctx) => `User ${ctx.chat.id} cancelled support question input`,
+		logMessage: (ctx) =>
+			`Пользователь ${ctx.chat.id} отменил ввод вопроса техподдержки`,
 	},
 
 	// Обработка кнопки "Назад" при вводе ответа техподдержки
@@ -179,7 +181,8 @@ const callbackHandlers = {
 			ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID] = null;
 			ctx.session[SESSION_KEYS.LAST_ACTION] = null;
 		},
-		logMessage: (ctx) => `Admin ${ctx.chat.id} cancelled support answer input`,
+		logMessage: (ctx) =>
+			`Администратор ${ctx.chat.id} отменил ввод ответа техподдержки`,
 	},
 };
 
@@ -208,9 +211,9 @@ const handleNavigationCallback = async (ctx, action) => {
 	const handler = callbackHandlers[action] || callbackHandlers[backAction];
 	if (handler) {
 		logger.info(
-			`Calling handler for action ${action || backAction} for user ${
-				ctx.chat.id
-			}, session: ${JSON.stringify(ctx.session)}`
+			`Вызов обработчика для действия ${
+				action || backAction
+			} для пользователя ${ctx.chat.id}, сессия: ${JSON.stringify(ctx.session)}`
 		);
 		const text =
 			typeof handler.text === 'function' ? handler.text(ctx) : handler.text;
@@ -221,7 +224,9 @@ const handleNavigationCallback = async (ctx, action) => {
 		}
 		logger.info(handler.logMessage(ctx));
 	} else {
-		logger.warn(`Unknown action: ${action} for user ${ctx.chat.id}`);
+		logger.warn(
+			`Неизвестное действие: ${action} для пользователя ${ctx.chat.id}`
+		);
 		await ctx.answerCallbackQuery(`Неизвестное действие: ${action}`);
 	}
 	await ctx.answerCallbackQuery();

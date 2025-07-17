@@ -14,11 +14,6 @@ const validateQuestion = (text) => {
 };
 
 const handleQuestionText = async (ctx) => {
-	logger.info(
-		`Before handleQuestionText: chatId=${ctx.chat.id}, session=${JSON.stringify(
-			ctx.session
-		)}`
-	);
 	if (ctx.session[SESSION_KEYS.AWAITING_QUESTION]) {
 		if (ctx.session[SESSION_KEYS.QUESTION_COUNT] <= 0) {
 			ctx.session[SESSION_KEYS.AWAITING_QUESTION] = false;
@@ -103,7 +98,7 @@ const handleQuestionText = async (ctx) => {
 				adminMessage.message_id;
 			ctx.session[SESSION_KEYS.AWAITING_ANSWER] = false;
 			logger.info(
-				`Admin answered question ${questionId} for user ${question.userId}`
+				`Администратор ответил на вопрос ${questionId} пользователя ${question.userId}`
 			);
 		} else {
 			const sentMessage = await sendOrEditMessage(
@@ -114,7 +109,7 @@ const handleQuestionText = async (ctx) => {
 			);
 			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
 				sentMessage.message_id;
-			logger.error(`Question ${questionId} not found for answering`);
+			logger.error(`Вопрос ${questionId} не найден для ответа`);
 		}
 	} else if (ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID]) {
 		const question = (await getQuestions()).find(

@@ -18,7 +18,7 @@ const logger = require('../../logger');
 
 const handleText = async (ctx) => {
 	logger.info(
-		`Text message received from user ${ctx.from.id}: ${ctx.message.text}`
+		`Получено текстовое сообщение от пользователя ${ctx.from.id}: ${ctx.message.text}`
 	);
 
 	if (ctx.from.id.toString() !== process.env.ADMIN_ID) {
@@ -67,7 +67,7 @@ const handleText = async (ctx) => {
 				true
 			);
 			logger.info(
-				`Payment ${paymentId} rejected by admin for user ${payment.userId}`
+				`Платеж ${paymentId} отклонен администратором для пользователя ${payment.userId}`
 			);
 		} else {
 			await sendOrEditMessage(
@@ -76,7 +76,7 @@ const handleText = async (ctx) => {
 				createBackKeyboard(),
 				true
 			);
-			logger.error(`Payment ${paymentId} not found for rejection`);
+			logger.error(`Платеж ${paymentId} не найден при отклонении`);
 		}
 		ctx.session[SESSION_KEYS.AWAITING_REJECT_PAYMENT_REASON] = false;
 		ctx.session[SESSION_KEYS.PAYMENT_ID] = null;
@@ -115,7 +115,7 @@ const handleText = async (ctx) => {
 			ctx.session[SESSION_KEYS.AWAITING_REJECT_REASON] = false;
 			ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = null;
 			logger.info(
-				`Question ${questionId} rejected by admin for user ${question.userId}`
+				`Вопрос ${questionId} отклонен администратором для пользователя ${question.userId}`
 			);
 		} else {
 			const sentMessage = await ctx.api.sendMessage(
@@ -128,7 +128,7 @@ const handleText = async (ctx) => {
 			);
 			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
 				sentMessage.message_id;
-			logger.error(`Question ${questionId} not found for rejection`);
+			logger.error(`Вопрос ${questionId} не найден при отклонении`);
 		}
 	} else {
 		await handleSpecificText(ctx);

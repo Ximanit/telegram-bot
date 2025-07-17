@@ -9,10 +9,12 @@ async function getSupportQuestions() {
 			.collection('support_questions')
 			.find({})
 			.toArray();
-		logger.info(`${questions.length} вопросов поддержки были получены из базы`);
+		logger.info(
+			`Получено ${questions.length} вопросов технической поддержки из MongoDB`
+		);
 		return questions;
 	} catch (error) {
-		logger.error('Ошибка чтения вопросов техподдержки из MongoDB:', {
+		logger.error('Ошибка чтения вопросов технической поддержки из MongoDB', {
 			error: error.message,
 			stack: error.stack,
 		});
@@ -35,11 +37,11 @@ async function addSupportQuestion(userId, username, text) {
 			.collection('support_questions')
 			.insertOne(newQuestion);
 		logger.info(
-			`Был добавлен новый вопрос технической поддержки от пользователя ${userId}: ${text}, _id: ${result.insertedId}`
+			`Добавлен вопрос технической поддержки от пользователя ${userId}: ${text}, _id: ${result.insertedId}`
 		);
 		return { ...newQuestion, _id: result.insertedId };
 	} catch (error) {
-		logger.error('Ошибка добавления вопроса техподдержки в MongoDB:', {
+		logger.error('Ошибка добавления вопроса технической поддержки в MongoDB', {
 			error: error.message,
 			stack: error.stack,
 		});
@@ -56,7 +58,7 @@ async function updateSupportQuestionStatus(_id, status) {
 			.collection('support_questions')
 			.findOne({ _id: questionId });
 		if (!question) {
-			logger.warn(`Вопрос технической поддежрки с  _id ${_id} не найден`);
+			logger.warn(`Вопрос технической поддержки с _id ${_id} не найден`);
 			return null;
 		}
 
@@ -65,7 +67,9 @@ async function updateSupportQuestionStatus(_id, status) {
 			.updateOne({ _id: questionId }, { $set: { status } });
 
 		if (result.matchedCount === 0) {
-			logger.warn(`Вопрос технической поддежрки с  _id ${_id} не найден`);
+			logger.warn(
+				`Вопрос технической поддержки с _id ${_id} не найден при обновлении`
+			);
 			return null;
 		}
 
@@ -73,14 +77,17 @@ async function updateSupportQuestionStatus(_id, status) {
 			.collection('support_questions')
 			.findOne({ _id: questionId });
 		logger.info(
-			`Вопрос технической поддержки  ${_id} обновлен, статус: ${status}`
+			`Вопрос технической поддержки ${_id} обновлен, статус: ${status}`
 		);
 		return updatedQuestion;
 	} catch (error) {
-		logger.error('Ошибка обновления статуса вопроса техподдержки в MongoDB:', {
-			error: error.message,
-			stack: error.stack,
-		});
+		logger.error(
+			'Ошибка обновления статуса вопроса технической поддержки в MongoDB',
+			{
+				error: error.message,
+				stack: error.stack,
+			}
+		);
 		throw error;
 	}
 }
@@ -94,7 +101,7 @@ async function addSupportDialogueMessage(_id, sender, message) {
 			.collection('support_questions')
 			.findOne({ _id: questionId });
 		if (!question) {
-			logger.warn(`Вопрос технической поддежрки с  _id ${_id} не найден`);
+			logger.warn(`Вопрос технической поддержки с _id ${_id} не найден`);
 			return null;
 		}
 
@@ -113,7 +120,7 @@ async function addSupportDialogueMessage(_id, sender, message) {
 
 		if (result.matchedCount === 0) {
 			logger.warn(
-				`Вопрос технической поддежрки с  _id ${_id} не найден для обновления`
+				`Вопрос технической поддержки с _id ${_id} не найден при обновлении`
 			);
 			return null;
 		}
@@ -122,11 +129,11 @@ async function addSupportDialogueMessage(_id, sender, message) {
 			.collection('support_questions')
 			.findOne({ _id: questionId });
 		logger.info(
-			`В диалог по вопросу добавлено новое сообщение ${_id} от ${sender}`
+			`Добавлено сообщение в диалог вопроса технической поддержки ${_id} от ${sender}`
 		);
 		return updatedQuestion;
 	} catch (error) {
-		logger.error('Ошибка добавления сообщения в диалог техподдержки:', {
+		logger.error('Ошибка добавления сообщения в диалог технической поддержки', {
 			error: error.message,
 			stack: error.stack,
 		});
@@ -142,14 +149,17 @@ async function getProcessingSupportQuestions() {
 			.find({ status: { $in: ['pending', 'in_progress'] } })
 			.toArray();
 		logger.info(
-			` ${questions.length} вопросов технической поддержки были получены из базы данных`
+			`Получено ${questions.length} вопросов технической поддержки в обработке из MongoDB`
 		);
 		return questions;
 	} catch (error) {
-		logger.error('Ошибка чтения processing вопросов техподдержки из MongoDB:', {
-			error: error.message,
-			stack: error.stack,
-		});
+		logger.error(
+			'Ошибка чтения вопросов технической поддержки в обработке из MongoDB',
+			{
+				error: error.message,
+				stack: error.stack,
+			}
+		);
 		return [];
 	}
 }

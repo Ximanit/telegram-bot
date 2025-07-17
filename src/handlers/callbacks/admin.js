@@ -115,7 +115,7 @@ const handleAdminCallback = async (ctx, action) => {
 			);
 			await ctx.answerCallbackQuery();
 			logger.info(
-				`Admin ${ctx.from.id} attempted to select non-existent item: ${action}`
+				`Администратор ${ctx.from.id} попытался выбрать несуществующий элемент: ${action}`
 			);
 			return;
 		}
@@ -151,7 +151,7 @@ const handleAdminCallback = async (ctx, action) => {
 					} else if (itemType === 'payments') {
 						const caption = formatItemFull(item, itemType);
 						keyboard = createPaymentConfirmationKeyboard(itemId);
-						logger.info(`Attempting to send payment photo`, {
+						logger.info(`Попытка отправить фото платежа`, {
 							paymentId: itemId,
 							telegramFileId: item.telegramFileId,
 						});
@@ -161,12 +161,12 @@ const handleAdminCallback = async (ctx, action) => {
 								await sendOrEditMessage(ctx, caption, keyboard, false, {
 									photo: item.telegramFileId,
 								});
-								logger.info(`Sent payment photo using telegramFileId`, {
+								logger.info(`Отправлено фото платежа с telegramFileId`, {
 									paymentId: itemId,
 									telegramFileId: item.telegramFileId,
 								});
 							} catch (photoError) {
-								logger.warn(`Failed to send photo with telegramFileId`, {
+								llogger.warn(`Не удалось отправить фото с telegramFileId`, {
 									paymentId: itemId,
 									error: photoError.message,
 								});
@@ -193,7 +193,7 @@ const handleAdminCallback = async (ctx, action) => {
 						await sendOrEditMessage(ctx, message, keyboard);
 					}
 				} catch (error) {
-					logger.error(`Error processing ${itemType} with ID ${itemId}`, {
+					logger.error(`Ошибка обработки ${itemType} с ID ${itemId}`, {
 						error: error.message,
 						stack: error.stack,
 					});
@@ -209,7 +209,7 @@ const handleAdminCallback = async (ctx, action) => {
 
 				await ctx.answerCallbackQuery();
 				logger.info(
-					`Admin ${ctx.from.id} selected ${itemType} with ID ${itemId}`
+					`Администратор ${ctx.from.id} выбрал ${itemType} с ID ${itemId}`
 				);
 				return;
 			} else if (itemType === 'questions') {
@@ -222,7 +222,7 @@ const handleAdminCallback = async (ctx, action) => {
 				await sendOrEditMessage(ctx, message, keyboard);
 			}
 		} catch (error) {
-			logger.error(`Error processing ${itemType} with ID ${itemId}`, {
+			logger.error(`Ошибка обработки ${itemType} с ID ${itemId}`, {
 				error: error.message,
 				stack: error.stack,
 			});
@@ -237,7 +237,9 @@ const handleAdminCallback = async (ctx, action) => {
 		}
 
 		await ctx.answerCallbackQuery();
-		logger.info(`Admin ${ctx.from.id} selected ${itemType} with ID ${itemId}`);
+		logger.info(
+			`Администратор ${ctx.from.id} выбрал ${itemType} с ID ${itemId}`
+		);
 		return;
 	} else {
 		await sendOrEditMessage(
@@ -246,7 +248,9 @@ const handleAdminCallback = async (ctx, action) => {
 			createAdminMenuKeyboard()
 		);
 		await ctx.answerCallbackQuery();
-		logger.info(`Admin ${ctx.from.id} attempted unknown action: ${action}`);
+		logger.info(
+			`Администратор ${ctx.from.id} попытался выполнить неизвестное действие: ${action}`
+		);
 		return;
 	}
 
@@ -257,7 +261,9 @@ const handleAdminCallback = async (ctx, action) => {
 			createAdminMenuKeyboard()
 		);
 		await ctx.answerCallbackQuery();
-		logger.info(`Admin ${ctx.from.id} accessed ${action}: no items found`);
+		logger.info(
+			`Администратор ${ctx.from.id} получил доступ к ${action}: элементы не найдены`
+		);
 		return;
 	}
 

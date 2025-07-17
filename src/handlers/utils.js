@@ -43,22 +43,21 @@ const sendOrEditMessage = async (
 		const chatId = ctx.chat.id;
 		const lastMessageId = ctx.session[SESSION_KEYS.LAST_MESSAGE_ID]?.[chatId];
 		logger.info(
-			`Attempting to send/delete message for chat ${chatId}, lastMessageId: ${lastMessageId}, forceNew: ${forceNew}`
+			`Попытка отправить или удалить сообщение для чата ${chatId}, последнее сообщение: ${lastMessageId}, forceNew: ${forceNew}`
 		);
 
 		let sentMessage;
 		if (lastMessageId && !forceNew) {
 			try {
 				await ctx.api.deleteMessage(chatId, lastMessageId);
-				logger.info(`Deleted message ${lastMessageId} in chat ${chatId}`);
+				logger.info(`Удалено сообщение ${lastMessageId} в чате ${chatId}`);
 			} catch (error) {
 				logger.warn(
-					`Failed to delete message ${lastMessageId} in chat ${chatId}: ${error.message}`
+					`Не удалось удалить сообщение ${lastMessageId} в чате ${chatId}: ${error.message}`
 				);
 			}
 		}
 
-		// Проверяем, есть ли фото в опциях
 		if (options.photo) {
 			sentMessage = await ctx.api.sendPhoto(chatId, options.photo, {
 				caption: text,
@@ -78,10 +77,12 @@ const sendOrEditMessage = async (
 
 		try {
 			await updateLastMessageId(ctx.from.id, sentMessage.message_id);
-			logger.info(`Saved lastMessageId to MongoDB for user ${ctx.from.id}`);
+			logger.info(
+				`Сохранен lastMessageId в MongoDB для пользователя ${ctx.from.id}`
+			);
 		} catch (saveError) {
 			logger.error(
-				`Failed to save lastMessageId to MongoDB: ${saveError.message}`,
+				`Ошибка сохранения lastMessageId в MongoDB: ${saveError.message}`,
 				{
 					stack: saveError.stack,
 				}
@@ -89,15 +90,15 @@ const sendOrEditMessage = async (
 		}
 
 		logger.info(
-			`Sent new message ${sentMessage.message_id} in chat ${chatId}${
-				forceNew ? ' (forced new)' : ''
+			`Отправлено новое сообщение ${sentMessage.message_id} в чат ${chatId}${
+				forceNew ? ' (принудительно новое)' : ''
 			}`
 		);
 
 		return sentMessage;
 	} catch (error) {
 		logger.error(
-			`Error in sendOrEditMessage for chat ${ctx.chat.id}: ${error.message}`,
+			`Ошибка в sendOrEditMessage для чата ${ctx.chat.id}: ${error.message}`,
 			{
 				stack: error.stack,
 			}
