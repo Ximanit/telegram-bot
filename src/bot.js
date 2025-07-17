@@ -10,15 +10,12 @@ const { handleAdmin } = require('./handlers/commands/admin');
 const { handleCallbackQuery } = require('./handlers/callbacks/main');
 const { handleText } = require('./handlers/text/main');
 const { handleError, sendOrEditMessage } = require('./handlers/utils');
-const { SESSION_KEYS } = require('./constants');
+const { SESSION_KEYS, MESSAGES } = require('./constants');
 const {
 	savePaymentPhoto,
 	updatePaymentStatus,
 } = require('./services/payments');
-const {
-	createPaymentConfirmationKeyboard,
-	createStartKeyboard,
-} = require('./keyboards');
+const { createStartKeyboard } = require('./keyboards');
 
 if (
 	!process.env.API_KEY ||
@@ -107,11 +104,11 @@ bot.on('message:photo', async (ctx) => {
 			ctx.session[SESSION_KEYS.PAYMENT_ID] = null;
 			await sendOrEditMessage(
 				ctx,
-				'Фото чека отправлено на проверку администратору.',
+				MESSAGES.paymentPhotoSent,
 				createStartKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT]),
 				true
 			);
-			logger.info('Payment photo uploaded', {
+			logger.info('Фото оплаты загруженно', {
 				paymentId: ctx.session[SESSION_KEYS.PAYMENT_ID],
 				userId: ctx.from.id,
 				chatId: ctx.chat.id,

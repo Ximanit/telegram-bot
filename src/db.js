@@ -51,9 +51,9 @@ async function updateSession(userId, updates) {
 					{ $set: { value: { ...currentSession.value, ...updates } } },
 					{ session }
 				);
-				logger.info('Session updated', { userId });
+				logger.info('Сессия обновлена', { userId });
 			} else {
-				logger.warn('Session not found', { userId });
+				logger.warn('Сессия не найдена', { userId });
 			}
 		});
 	} catch (error) {
@@ -73,7 +73,7 @@ async function getUserSession(userId, ctx) {
 	const sessions = db.collection('sessions');
 	const userSession = await sessions.findOne({ key: userId.toString() });
 	if (!userSession) {
-		logger.error(`Session for user ${userId} not found`);
+		logger.error(`Сессия пользователя: ${userId} не найдена`);
 		await sendOrEditMessage(
 			ctx,
 			'Ошибка: сессия пользователя не найдена.',

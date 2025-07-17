@@ -9,7 +9,7 @@ async function getSupportQuestions() {
 			.collection('support_questions')
 			.find({})
 			.toArray();
-		logger.info(`Fetched ${questions.length} support questions from MongoDB`);
+		logger.info(`${questions.length} вопросов поддержки были получены из базы`);
 		return questions;
 	} catch (error) {
 		logger.error('Ошибка чтения вопросов техподдержки из MongoDB:', {
@@ -35,7 +35,7 @@ async function addSupportQuestion(userId, username, text) {
 			.collection('support_questions')
 			.insertOne(newQuestion);
 		logger.info(
-			`Added support question by user ${userId}: ${text}, _id: ${result.insertedId}`
+			`Был добавлен новый вопрос технической поддержки от пользователя ${userId}: ${text}, _id: ${result.insertedId}`
 		);
 		return { ...newQuestion, _id: result.insertedId };
 	} catch (error) {
@@ -56,7 +56,7 @@ async function updateSupportQuestionStatus(_id, status) {
 			.collection('support_questions')
 			.findOne({ _id: questionId });
 		if (!question) {
-			logger.warn(`Support question with _id ${_id} not found`);
+			logger.warn(`Вопрос технической поддежрки с  _id ${_id} не найден`);
 			return null;
 		}
 
@@ -65,14 +65,16 @@ async function updateSupportQuestionStatus(_id, status) {
 			.updateOne({ _id: questionId }, { $set: { status } });
 
 		if (result.matchedCount === 0) {
-			logger.warn(`Support question with _id ${_id} not found during update`);
+			logger.warn(`Вопрос технической поддежрки с  _id ${_id} не найден`);
 			return null;
 		}
 
 		const updatedQuestion = await db
 			.collection('support_questions')
 			.findOne({ _id: questionId });
-		logger.info(`Support question ${_id} updated, status: ${status}`);
+		logger.info(
+			`Вопрос технической поддержки  ${_id} обновлен, статус: ${status}`
+		);
 		return updatedQuestion;
 	} catch (error) {
 		logger.error('Ошибка обновления статуса вопроса техподдержки в MongoDB:', {
@@ -92,7 +94,7 @@ async function addSupportDialogueMessage(_id, sender, message) {
 			.collection('support_questions')
 			.findOne({ _id: questionId });
 		if (!question) {
-			logger.warn(`Support question with _id ${_id} not found`);
+			logger.warn(`Вопрос технической поддежрки с  _id ${_id} не найден`);
 			return null;
 		}
 
@@ -110,7 +112,9 @@ async function addSupportDialogueMessage(_id, sender, message) {
 		);
 
 		if (result.matchedCount === 0) {
-			logger.warn(`Support question with _id ${_id} not found during update`);
+			logger.warn(
+				`Вопрос технической поддежрки с  _id ${_id} не найден для обновления`
+			);
 			return null;
 		}
 
@@ -118,7 +122,7 @@ async function addSupportDialogueMessage(_id, sender, message) {
 			.collection('support_questions')
 			.findOne({ _id: questionId });
 		logger.info(
-			`Added dialogue message to support question ${_id} by ${sender}`
+			`В диалог по вопросу добавлено новое сообщение ${_id} от ${sender}`
 		);
 		return updatedQuestion;
 	} catch (error) {
@@ -138,7 +142,7 @@ async function getProcessingSupportQuestions() {
 			.find({ status: { $in: ['pending', 'in_progress'] } })
 			.toArray();
 		logger.info(
-			`Fetched ${questions.length} processing support questions from MongoDB`
+			` ${questions.length} вопросов технической поддержки были получены из базы данных`
 		);
 		return questions;
 	} catch (error) {

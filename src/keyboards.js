@@ -41,7 +41,7 @@ const createCartKeyboard = (cart) => {
 };
 
 const createBackKeyboard = () => {
-	return new InlineKeyboard().text('Назад', 'back_to_menu');
+	return new InlineKeyboard().text('На главную', 'back_to_menu');
 };
 
 const createBackCartKeyboard = () => {
@@ -84,7 +84,7 @@ const createUserQuestionActionKeyboard = (questionId) => {
 const createReviewPromptKeyboard = () => {
 	return new InlineKeyboard()
 		.text('Оставить отзыв', 'add_review')
-		.text('Назад', 'back_to_menu');
+		.text('На главную', 'back_to_menu');
 };
 
 const createSupportQuestionActionKeyboard = (questionId) => {

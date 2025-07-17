@@ -1,9 +1,4 @@
-const {
-	createStartKeyboard,
-	createBackKeyboard,
-	createQuestionActionKeyboard,
-	createUserQuestionActionKeyboard,
-} = require('../../keyboards');
+const { createStartKeyboard, createBackKeyboard } = require('../../keyboards');
 const { MESSAGES, SESSION_KEYS } = require('../../constants');
 const {
 	addQuestion,
@@ -30,7 +25,7 @@ const handleQuestionText = async (ctx) => {
 			const sentMessage = await sendOrEditMessage(
 				ctx,
 				MESSAGES.noQuestionService,
-				createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT]),
+				createBackKeyboard(),
 				true
 			);
 			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
@@ -43,7 +38,7 @@ const handleQuestionText = async (ctx) => {
 			const sentMessage = await sendOrEditMessage(
 				ctx,
 				MESSAGES.questionTooShort,
-				createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT]),
+				createBackKeyboard(),
 				true
 			);
 			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
@@ -128,10 +123,6 @@ const handleQuestionText = async (ctx) => {
 				q.status === 'in_progress'
 		);
 		if (question) {
-			const userInfo = ctx.from.username
-				? `@${ctx.from.username}`
-				: `ID ${ctx.from.id}`;
-			const userName = ctx.from?.first_name || 'Пользователь';
 			await addDialogueMessage(question._id, 'user', ctx.message.text);
 			// await ctx.api.sendMessage(
 			// 	process.env.ADMIN_ID,
@@ -144,7 +135,7 @@ const handleQuestionText = async (ctx) => {
 			const sentMessage = await sendOrEditMessage(
 				ctx,
 				MESSAGES.dialogueMessageSent,
-				createUserQuestionActionKeyboard(question._id.toString()),
+				createBackKeyboard(),
 				true
 			);
 			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
