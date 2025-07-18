@@ -73,10 +73,10 @@ const handleSupportQuestionText = async (ctx) => {
 				q.status === 'in_progress'
 		);
 		if (question) {
-			const userInfo = ctx.from.username
-				? `@${ctx.from.username}`
-				: `ID ${ctx.from.id}`;
-			const userName = ctx.from?.first_name || 'Пользователь';
+			// const userInfo = ctx.from.username
+			// 	? `@${ctx.from.username}`
+			// 	: `ID ${ctx.from.id}`;
+			// const userName = ctx.from?.first_name || 'Пользователь';
 			await addSupportDialogueMessage(question._id, 'user', ctx.message.text);
 			// await ctx.api.sendMessage(
 			// 	process.env.ADMIN_ID,
@@ -100,7 +100,7 @@ const handleSupportQuestionText = async (ctx) => {
 			ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID] = null;
 			const sentMessage = await sendOrEditMessage(
 				ctx,
-				'Диалог по этому вопросу техподдержки завершен или вопрос не найден.',
+				MESSAGES.dialogSupportMessagesFinish,
 				createStartKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT]),
 				true
 			);

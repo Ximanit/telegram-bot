@@ -100,7 +100,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 			);
 			await sendOrEditMessage(
 				ctx,
-				'Платеж подтвержден',
+				MESSAGES.paymentConfirmedAdmin,
 				createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
 			);
 			ctx.session[SESSION_KEYS.CART] = [];
@@ -108,10 +108,10 @@ const handleCartCallback = async (ctx, action, userName) => {
 		} else {
 			await sendOrEditMessage(
 				ctx,
-				'Ошибка: платеж не найден.',
+				MESSAGES.errorPaymentNotFound,
 				createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
 			);
-			await ctx.answerCallbackQuery('Ошибка: платеж не найден');
+			await ctx.answerCallbackQuery(MESSAGES.errorPaymentNotFound);
 		}
 	} else if (action.startsWith('reject_payment_')) {
 		const paymentId = action.replace('reject_payment_', '');
@@ -119,10 +119,10 @@ const handleCartCallback = async (ctx, action, userName) => {
 		if (!payment) {
 			await sendOrEditMessage(
 				ctx,
-				'Ошибка: платеж не найден.',
+				MESSAGES.errorPaymentNotFound,
 				createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
 			);
-			await ctx.answerCallbackQuery('Ошибка: платеж не найден');
+			await ctx.answerCallbackQuery(MESSAGES.errorPaymentNotFound);
 			return;
 		}
 		ctx.session[SESSION_KEYS.AWAITING_REJECT_PAYMENT_REASON] = true;

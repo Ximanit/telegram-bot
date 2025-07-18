@@ -62,7 +62,7 @@ const handleText = async (ctx) => {
 			);
 			await sendOrEditMessage(
 				ctx,
-				'Платеж отклонен, причина отправлена пользователю.',
+				MESSAGES.paymentRejectedReasonSend,
 				createBackKeyboard(),
 				true
 			);
@@ -72,7 +72,7 @@ const handleText = async (ctx) => {
 		} else {
 			await sendOrEditMessage(
 				ctx,
-				'Ошибка: платеж не найден.',
+				MESSAGES.errorPaymentNotFound,
 				createBackKeyboard(),
 				true
 			);
@@ -92,7 +92,7 @@ const handleText = async (ctx) => {
 			rejectReason
 		);
 		if (question) {
-			const sentMessage = await sendMessageToUser(
+			await sendMessageToUser(
 				question.userId,
 				`${MESSAGES.questionRejectedWithReason.replace(
 					'%reason',
@@ -104,7 +104,7 @@ const handleText = async (ctx) => {
 
 			const adminMessage = await ctx.api.sendMessage(
 				ctx.chat.id,
-				'Вопрос отклонен, причина отправлена пользователю.',
+				MESSAGES.questionRejectedReasonSendToUser,
 				{
 					parse_mode: 'Markdown',
 					reply_markup: createBackKeyboard(),
@@ -120,7 +120,7 @@ const handleText = async (ctx) => {
 		} else {
 			const sentMessage = await ctx.api.sendMessage(
 				ctx.chat.id,
-				'Ошибка: вопрос не найден.',
+				MESSAGES.questionNotFound,
 				{
 					parse_mode: 'Markdown',
 					reply_markup: createBackKeyboard(),

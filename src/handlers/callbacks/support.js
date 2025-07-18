@@ -22,7 +22,7 @@ const handleSupportQuestionCallback = async (ctx, action) => {
 			ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID] = questionId;
 			await sendOrEditMessage(
 				ctx,
-				'Пожалуйста, введите ваш ответ:',
+				MESSAGES.pleaseEnterYourQuestion,
 				createBackKeyboard()
 			);
 			await ctx.answerCallbackQuery();
@@ -58,11 +58,7 @@ const handleSupportQuestionCallback = async (ctx, action) => {
 	} else if (action.startsWith('clarify_support_question_')) {
 		const questionId = action.replace('clarify_support_question_', '');
 		ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID] = questionId;
-		await sendOrEditMessage(
-			ctx,
-			'Пожалуйста, отправьте уточнение:',
-			createBackKeyboard()
-		);
+		await sendOrEditMessage(ctx, MESSAGES.enterСlarify, createBackKeyboard());
 		await ctx.answerCallbackQuery();
 	}
 };

@@ -1,3 +1,4 @@
+const { MESSAGES } = require('../../constants');
 const {
 	createAdminMenuKeyboard,
 	createBackKeyboard,
@@ -8,7 +9,7 @@ const handleAdmin = async (ctx) => {
 	if (ctx.from.id.toString() !== process.env.ADMIN_ID) {
 		await sendOrEditMessage(
 			ctx,
-			'У вас нет доступа к админ-панели.',
+			MESSAGES.admniEnterClose,
 			createBackKeyboard(),
 			true
 		);
@@ -16,7 +17,7 @@ const handleAdmin = async (ctx) => {
 	} else {
 		await sendOrEditMessage(
 			ctx,
-			'Добро пожаловать в админ-панель!\nВыберите раздел:',
+			MESSAGES.enterAdmin,
 			createAdminMenuKeyboard(),
 			true
 		);

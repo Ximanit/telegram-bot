@@ -1,8 +1,4 @@
-const {
-	createStartKeyboard,
-	createBackKeyboard,
-	createReviewModerationKeyboard,
-} = require('../../keyboards');
+const { createStartKeyboard, createBackKeyboard } = require('../../keyboards');
 const { MESSAGES, SESSION_KEYS } = require('../../constants');
 const { addReview } = require('../../services/reviews');
 const { sendOrEditMessage } = require('../utils');
@@ -23,7 +19,7 @@ const handleReviewText = async (ctx) => {
 		);
 		return;
 	}
-	// const review = await addReview(ctx.from.id, ctx.from.username, reviewText);
+	await addReview(ctx.from.id, ctx.from.username, reviewText);
 	// await ctx.api.sendMessage(
 	// 	process.env.ADMIN_ID,
 	// 	MESSAGES.reviewReceived

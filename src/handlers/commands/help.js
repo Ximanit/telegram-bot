@@ -6,7 +6,7 @@ const handleHelp = async (ctx) => {
 	ctx.session[SESSION_KEYS.AWAITING_SUPPORT_QUESTION] = true;
 	await sendOrEditMessage(
 		ctx,
-		'Пожалуйста, опишите ваш вопрос для технической поддержки:',
+		MESSAGES.enterQuestionSupport,
 		createBackKeyboard(),
 		true
 	);

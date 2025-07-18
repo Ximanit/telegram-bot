@@ -14,6 +14,7 @@ const { InlineKeyboard } = require('grammy');
 
 const logger = require('../../logger');
 const { getItemById } = require('../../db');
+const { MESSAGES } = require('../../constants');
 
 // Унифицированная функция для форматирования краткого описания элемента (для кнопок)
 const formatItemShort = (item, type) => {
@@ -110,7 +111,7 @@ const handleAdminCallback = async (ctx, action) => {
 		if (!item) {
 			await sendOrEditMessage(
 				ctx,
-				'Элемент не найден.',
+				MESSAGES.itemNotFound,
 				createAdminMenuKeyboard()
 			);
 			await ctx.answerCallbackQuery();
@@ -132,7 +133,7 @@ const handleAdminCallback = async (ctx, action) => {
 				if (!item) {
 					await sendOrEditMessage(
 						ctx,
-						'Элемент не найден.',
+						MESSAGES.itemNotFound,
 						createAdminMenuKeyboard()
 					);
 					await ctx.answerCallbackQuery();
@@ -166,7 +167,7 @@ const handleAdminCallback = async (ctx, action) => {
 									telegramFileId: item.telegramFileId,
 								});
 							} catch (photoError) {
-								llogger.warn(`Не удалось отправить фото с telegramFileId`, {
+								logger.warn(`Не удалось отправить фото с telegramFileId`, {
 									paymentId: itemId,
 									error: photoError.message,
 								});

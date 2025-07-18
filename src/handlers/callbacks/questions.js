@@ -21,7 +21,7 @@ const handleQuestionCallback = async (ctx, action) => {
 			ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = questionId;
 			await sendOrEditMessage(
 				ctx,
-				'Пожалуйста, введите ваш ответ:',
+				MESSAGES.pleaseEnterYourQuestion,
 				createBackKeyboard(),
 				true
 			);
@@ -39,7 +39,7 @@ const handleQuestionCallback = async (ctx, action) => {
 		ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = questionId;
 		await sendOrEditMessage(
 			ctx,
-			'Пожалуйста, укажите причину отклонения:',
+			MESSAGES.enterReasonReject,
 			createBackKeyboard(),
 			true
 		);
@@ -75,11 +75,7 @@ const handleQuestionCallback = async (ctx, action) => {
 	} else if (action.startsWith('clarify_question_')) {
 		const questionId = action.replace('clarify_question_', '');
 		ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = questionId;
-		await sendOrEditMessage(
-			ctx,
-			'Пожалуйста, отправьте уточнение:',
-			createBackKeyboard()
-		);
+		await sendOrEditMessage(ctx, MESSAGES.enterСlarify, createBackKeyboard());
 		logger.info(
 			`Администратор ${ctx.from.id} запросил уточнение для вопроса ${questionId}`
 		);

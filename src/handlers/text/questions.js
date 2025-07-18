@@ -83,14 +83,14 @@ const handleQuestionText = async (ctx) => {
 		if (question) {
 			await sendMessageToUser(
 				question.userId,
-				`Сообщение от администратора:\n${answer}`,
+				`${MESSAGES.newAdminMessage}\n${answer}`,
 				createBackKeyboard(),
 				ctx
 			);
 
 			const adminMessage = await sendOrEditMessage(
 				ctx,
-				'Сообщение отправлено пользователю.',
+				MESSAGES.messageSendUser,
 				createBackKeyboard(),
 				true
 			);
@@ -103,7 +103,7 @@ const handleQuestionText = async (ctx) => {
 		} else {
 			const sentMessage = await sendOrEditMessage(
 				ctx,
-				'Ошибка: вопрос не найден.',
+				MESSAGES.questionNotFound,
 				createBackKeyboard(),
 				true
 			);
@@ -139,7 +139,7 @@ const handleQuestionText = async (ctx) => {
 			ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = null;
 			const sentMessage = await sendOrEditMessage(
 				ctx,
-				'Диалог по этому вопросу завершен или вопрос не найден.',
+				MESSAGES.dialogFinishOrNotFound,
 				createStartKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT]),
 				true
 			);

@@ -46,8 +46,8 @@ const handleCallbackQuery = async (ctx) => {
 		const sentMessage = await sendOrEditMessage(
 			ctx,
 			ctx.session[SESSION_KEYS.AWAITING_REJECT_REASON]
-				? 'Пожалуйста, укажите причину отклонения:'
-				: 'Пожалуйста, укажите причину отклонения платежа:',
+				? MESSAGES.enterReasonReject
+				: MESSAGES.rejectPaymentReasonPrompt,
 			createBackKeyboard(),
 			true
 		);
