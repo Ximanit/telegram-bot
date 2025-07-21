@@ -71,12 +71,13 @@ const MESSAGES = {
 		'Пожалуйста, опишите ваш вопрос для технической поддержки:',
 	admniEnterClose: 'У вас нет доступа к админ-панели.',
 	enterAdmin: 'Добро пожаловать в админ-панель!\nВыберите раздел:',
-	pleaseEnterYourQuestion: 'Пожалуйста, введите ваш ответ:',
+	pleaseEnterYourAnswer: 'Пожалуйста, введите ваш ответ:',
 	enterСlarify: 'Пожалуйста, отправьте уточнение:',
 	enterReasonReject: 'Пожалуйста, укажите причину отклонения:',
 	paymentConfirmedAdmin: 'Платеж подтвержден',
 	itemNotFound: 'Элемент не найден.',
 };
+
 const SERVICES = [
 	{ id: 'single_question', name: 'Ответ на 1 вопрос', price: 2000 },
 ];

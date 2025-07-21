@@ -44,6 +44,13 @@ const createBackKeyboard = () => {
 	return new InlineKeyboard().text('На главную', 'back_to_menu');
 };
 
+const createBackKeyboardADmin = () => {
+	return new InlineKeyboard().text(
+		'На главную администратора',
+		'back_to_admin_menu'
+	);
+};
+
 const createBackCartKeyboard = () => {
 	return new InlineKeyboard().text('Назад', 'back_from_payment_photo');
 };
@@ -92,15 +99,15 @@ const createSupportQuestionActionKeyboard = (questionId) => {
 		.text('Ответить', `answer_support_question_${questionId}`)
 		.text('Закрыть', `close_support_question_${questionId}`)
 		.row()
-		.text('Назад', 'admin_support_questions'); // Возврат к списку вопросов техподдержки
+		.text('Назад', 'admin_support'); // Возврат к списку вопросов техподдержки
 };
 
 const createUserSupportQuestionActionKeyboard = (questionId) => {
 	return new InlineKeyboard()
 		.text('Уточнить', `clarify_support_question_${questionId}`)
-		.text('Закрыть', `close_support_question_${questionId}`)
-		.row()
-		.text('Назад', 'back_to_menu');
+		.text('Закрыть', `close_support_question_${questionId}`);
+	// .row()
+	// .text('Назад', 'back_to_menu');
 };
 
 const createConfirmClearCartKeyboard = () => {
@@ -115,7 +122,7 @@ const createAdminMenuKeyboard = () => {
 		.text('Платежи', 'admin_payments')
 		.row()
 		.text('Вопросы', 'admin_questions')
-		.text('Вопросы тех. поддержки', 'admin_support_questions');
+		.text('Вопросы тех. поддержки', 'admin_support');
 };
 
 module.exports = {
@@ -133,4 +140,5 @@ module.exports = {
 	createConfirmClearCartKeyboard,
 	createBackCartKeyboard,
 	createAdminMenuKeyboard,
+	createBackKeyboardADmin,
 };

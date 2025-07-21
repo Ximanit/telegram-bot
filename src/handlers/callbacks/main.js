@@ -4,7 +4,7 @@ const { sendOrEditMessage } = require('../utils');
 const {
 	createBackKeyboard,
 	createStartKeyboard,
-	createReviewPromptKeyboard,
+	createBackKeyboardADmin,
 } = require('../../keyboards');
 const logger = require('../../logger');
 
@@ -48,7 +48,7 @@ const handleCallbackQuery = async (ctx) => {
 			ctx.session[SESSION_KEYS.AWAITING_REJECT_REASON]
 				? MESSAGES.enterReasonReject
 				: MESSAGES.rejectPaymentReasonPrompt,
-			createBackKeyboard(),
+			createBackKeyboardADmin(),
 			true
 		);
 		ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =

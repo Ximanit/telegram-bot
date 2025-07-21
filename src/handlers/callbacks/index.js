@@ -65,11 +65,11 @@ const handleCallbackQuery = async (ctx) => {
 		action === 'admin_reviews' ||
 		action === 'admin_payments' ||
 		action === 'admin_questions' ||
-		action === 'admin_support_questions' ||
+		action === 'admin_support' ||
 		action.startsWith('select_reviews_') ||
 		action.startsWith('select_payments_') ||
 		action.startsWith('select_questions_') ||
-		action.startsWith('select_support_questions_')
+		action.startsWith('select_support_')
 	) {
 		return handleAdminCallback(ctx, action);
 	}

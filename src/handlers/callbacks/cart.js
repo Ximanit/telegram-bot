@@ -4,6 +4,7 @@ const {
 	createBackKeyboard,
 	createStartKeyboard,
 	createConfirmClearCartKeyboard,
+	createBackKeyboardADmin,
 } = require('../../keyboards');
 const { MESSAGES, SESSION_KEYS } = require('../../constants');
 const { sendOrEditMessage, sendMessageToUser } = require('../utils');
@@ -101,7 +102,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 			await sendOrEditMessage(
 				ctx,
 				MESSAGES.paymentConfirmedAdmin,
-				createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
+				createBackKeyboardADmin()
 			);
 			ctx.session[SESSION_KEYS.CART] = [];
 			await ctx.answerCallbackQuery('Платеж подтвержден');
@@ -109,7 +110,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 			await sendOrEditMessage(
 				ctx,
 				MESSAGES.errorPaymentNotFound,
-				createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
+				createBackKeyboard()
 			);
 			await ctx.answerCallbackQuery(MESSAGES.errorPaymentNotFound);
 		}
@@ -120,7 +121,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 			await sendOrEditMessage(
 				ctx,
 				MESSAGES.errorPaymentNotFound,
-				createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
+				createBackKeyboard()
 			);
 			await ctx.answerCallbackQuery(MESSAGES.errorPaymentNotFound);
 			return;
@@ -130,7 +131,7 @@ const handleCartCallback = async (ctx, action, userName) => {
 		await sendOrEditMessage(
 			ctx,
 			MESSAGES.rejectPaymentReasonPrompt,
-			createBackKeyboard()
+			createBackKeyboardADmin()
 		);
 		await ctx.answerCallbackQuery();
 	}

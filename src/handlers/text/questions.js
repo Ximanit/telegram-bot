@@ -1,4 +1,8 @@
-const { createStartKeyboard, createBackKeyboard } = require('../../keyboards');
+const {
+	createStartKeyboard,
+	createBackKeyboard,
+	createBackKeyboardADmin,
+} = require('../../keyboards');
 const { MESSAGES, SESSION_KEYS } = require('../../constants');
 const {
 	addQuestion,
@@ -91,7 +95,7 @@ const handleQuestionText = async (ctx) => {
 			const adminMessage = await sendOrEditMessage(
 				ctx,
 				MESSAGES.messageSendUser,
-				createBackKeyboard(),
+				createBackKeyboardADmin(),
 				true
 			);
 			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =

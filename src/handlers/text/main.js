@@ -11,6 +11,7 @@ const {
 	createUserQuestionActionKeyboard,
 	createUserSupportQuestionActionKeyboard,
 	createStartKeyboard,
+	createBackKeyboardADmin,
 } = require('../../keyboards');
 const { sendOrEditMessage, sendMessageToUser } = require('../utils');
 const { SESSION_KEYS, MESSAGES } = require('../../constants');
@@ -32,7 +33,7 @@ const handleText = async (ctx) => {
 			userKeyboard: createUserQuestionActionKeyboard,
 			collection: 'question',
 			successMessage: 'вопросу',
-			backKeyboard: createBackKeyboard(),
+			backKeyboard: createBackKeyboardADmin(),
 		});
 	} else if (ctx.session[SESSION_KEYS.AWAITING_SUPPORT_ANSWER]) {
 		const questionId = ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID];
@@ -41,7 +42,7 @@ const handleText = async (ctx) => {
 			userKeyboard: createUserSupportQuestionActionKeyboard,
 			collection: 'support question',
 			successMessage: 'вопросу техподдержки',
-			backKeyboard: createBackKeyboard(),
+			backKeyboard: createBackKeyboardADmin(),
 		});
 		ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID] = null;
 	} else if (ctx.session[SESSION_KEYS.AWAITING_REJECT_PAYMENT_REASON]) {
@@ -63,7 +64,7 @@ const handleText = async (ctx) => {
 			await sendOrEditMessage(
 				ctx,
 				MESSAGES.paymentRejectedReasonSend,
-				createBackKeyboard(),
+				createBackKeyboardADmin(),
 				true
 			);
 			logger.info(

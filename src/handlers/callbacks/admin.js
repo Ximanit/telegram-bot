@@ -30,7 +30,7 @@ const formatItemShort = (item, type) => {
 		case 'questions':
 			text = `Вопрос от @${username} ${item.text}`;
 			break;
-		case 'support_questions':
+		case 'support':
 			text = `Вопрос техподдержки от @${username} ${item.text}`;
 			break;
 		default:
@@ -53,11 +53,12 @@ const formatItemFull = (item, type) => {
 				message += `${index + 1}. ${msg.sender}: ${msg.message}\n`;
 			});
 			return message;
-		case 'support_questions':
+		case 'support':
 			let support_message = `Вопрос от @${username}:\n${item.text}\n\nДиалог:\n`;
 			item.dialogue.forEach((msg, index) => {
 				support_message += `${index + 1}. ${msg.sender}: ${msg.message}\n`;
 			});
+			return support_message;
 		default:
 			return '';
 	}
@@ -99,9 +100,9 @@ const handleAdminCallback = async (ctx, action) => {
 		keyboardCreator = createQuestionActionKeyboard;
 		itemTypeLabel = 'вопросов';
 		title = 'Список вопросов';
-	} else if (action === 'admin_support_questions') {
+	} else if (action === 'admin_support') {
 		items = await getProcessingSupportQuestions();
-		type = 'support_questions';
+		type = 'support';
 		keyboardCreator = createSupportQuestionActionKeyboard;
 		itemTypeLabel = 'вопросов техподдержки';
 		title = 'Список вопросов технической поддержки';
@@ -188,7 +189,7 @@ const handleAdminCallback = async (ctx, action) => {
 						const message = formatItemFull(item, itemType);
 						keyboard = createQuestionActionKeyboard(itemId);
 						await sendOrEditMessage(ctx, message, keyboard);
-					} else if (itemType === 'support_questions') {
+					} else if (itemType === 'support') {
 						const message = formatItemFull(item, itemType);
 						keyboard = createSupportQuestionActionKeyboard(itemId);
 						await sendOrEditMessage(ctx, message, keyboard);
@@ -217,7 +218,7 @@ const handleAdminCallback = async (ctx, action) => {
 				const message = formatItemFull(item, itemType);
 				keyboard = createQuestionActionKeyboard(itemId);
 				await sendOrEditMessage(ctx, message, keyboard);
-			} else if (itemType === 'support_questions') {
+			} else if (itemType === 'support') {
 				const message = formatItemFull(item, itemType);
 				keyboard = createSupportQuestionActionKeyboard(itemId);
 				await sendOrEditMessage(ctx, message, keyboard);

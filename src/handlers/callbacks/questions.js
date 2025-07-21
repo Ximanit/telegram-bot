@@ -1,11 +1,13 @@
 const {
 	createBackKeyboard,
 	createReviewPromptKeyboard,
+	createBackKeyboardADmin,
 } = require('../../keyboards');
 const { updateQuestionStatus } = require('../../services/questions');
 const { MESSAGES, SESSION_KEYS } = require('../../constants');
 const { sendOrEditMessage, sendMessageToUser } = require('../utils');
 const logger = require('../../logger');
+const { handleAdminCallback } = require('../callbacks/admin');
 
 const handleQuestionCallback = async (ctx, action) => {
 	logger.info(
@@ -21,9 +23,8 @@ const handleQuestionCallback = async (ctx, action) => {
 			ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = questionId;
 			await sendOrEditMessage(
 				ctx,
-				MESSAGES.pleaseEnterYourQuestion,
-				createBackKeyboard(),
-				true
+				MESSAGES.pleaseEnterYourAnswer,
+				createBackKeyboardADmin()
 			);
 			logger.info(
 				`Администратор ${ctx.from.id} начал отвечать на вопрос ${questionId}`
@@ -44,7 +45,7 @@ const handleQuestionCallback = async (ctx, action) => {
 			true
 		);
 		logger.info(
-			`Администратор ${ctx.from.id} запросил ввод причины отклонения для вопроса ${questionId}`
+			`Администратор ${ctx.from.id} ввел причину отклонения для вопроса ${questionId}`
 		);
 		await ctx.answerCallbackQuery();
 	} else if (action.startsWith('close_question_')) {
@@ -68,6 +69,8 @@ const handleQuestionCallback = async (ctx, action) => {
 			ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = null;
 			logger.info(`Вопрос ${questionId} закрыт администратором ${ctx.from.id}`);
 			await ctx.answerCallbackQuery('Вопрос закрыт');
+
+			await handleAdminCallback(ctx, 'admin_questions');
 		} else {
 			logger.error(`Вопрос ${questionId} не найден при попытке закрытия`);
 			await ctx.answerCallbackQuery('Ошибка: вопрос не найден');

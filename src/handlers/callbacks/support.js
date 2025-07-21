@@ -1,14 +1,12 @@
 const {
 	createBackKeyboard,
 	createStartKeyboard,
-	createUserSupportQuestionActionKeyboard,
+	createBackKeyboardADmin,
 } = require('../../keyboards');
-const {
-	updateSupportQuestionStatus,
-	addSupportDialogueMessage,
-} = require('../../services/support');
+const { updateSupportQuestionStatus } = require('../../services/support');
 const { MESSAGES, SESSION_KEYS } = require('../../constants');
 const { sendOrEditMessage, sendMessageToUser } = require('../utils');
+const { handleNavigationCallback } = require('../callbacks/navigation');
 
 const handleSupportQuestionCallback = async (ctx, action) => {
 	if (action.startsWith('answer_support_question_')) {
@@ -22,8 +20,8 @@ const handleSupportQuestionCallback = async (ctx, action) => {
 			ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID] = questionId;
 			await sendOrEditMessage(
 				ctx,
-				MESSAGES.pleaseEnterYourQuestion,
-				createBackKeyboard()
+				MESSAGES.pleaseEnterYourAnswer,
+				createBackKeyboardADmin()
 			);
 			await ctx.answerCallbackQuery();
 		} else {
@@ -52,6 +50,7 @@ const handleSupportQuestionCallback = async (ctx, action) => {
 
 			ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID] = null;
 			await ctx.answerCallbackQuery('Вопрос техподдержки закрыт');
+			handleNavigationCallback(ctx, 'back_to_admin_menu');
 		} else {
 			await ctx.answerCallbackQuery('Ошибка: вопрос техподдержки не найден');
 		}

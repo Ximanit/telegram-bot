@@ -1,7 +1,6 @@
-const { connectDB } = require('../../db');
 const { sendOrEditMessage, sendMessageToUser } = require('../utils');
 const logger = require('../../logger');
-const { SESSION_KEYS } = require('../../constants');
+const { SESSION_KEYS, MESSAGES } = require('../../constants');
 
 const handleAdminAnswer = async (ctx, questionId, answer, config) => {
 	const { addMessage, userKeyboard, collection, successMessage } = config;
@@ -26,7 +25,7 @@ const handleAdminAnswer = async (ctx, questionId, answer, config) => {
 
 	await sendOrEditMessage(
 		ctx,
-		'Сообщение отправлено пользователю.',
+		MESSAGES.messageSendUser,
 		config.backKeyboard,
 		true
 	);

@@ -101,7 +101,7 @@ const getItemById = async (type, id) => {
 		reviews: 'reviews',
 		payments: 'payments',
 		questions: 'questions',
-		support_questions: 'support_questions',
+		support: 'support_questions',
 	};
 	const collection = collectionMap[type];
 	if (!collection) return null;
