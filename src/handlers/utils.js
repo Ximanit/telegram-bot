@@ -1,17 +1,21 @@
 const logger = require('../logger');
 const { SESSION_KEYS, MESSAGES } = require('../constants');
 const { getUserSession, updateLastMessageId } = require('../db');
+const { createStartKeyboard } = require('../keyboards');
 
 const handleError = async (err, ctx, additionalInfo = {}) => {
 	const updateId = ctx?.update?.update_id ?? 'unknown';
-	logger.error('Произошла ошибка', {
+	const errorDetails = {
 		updateId,
 		error: err.message,
 		stack: err.stack,
 		userId: ctx?.from?.id,
 		chatId: ctx?.chat?.id,
 		...additionalInfo,
-	});
+	};
+	logger.error('Произошла ошибка', errorDetails);
+
+	// Отправка сообщения об ошибке пользователю
 	if (ctx?.chat) {
 		try {
 			await sendOrEditMessage(
@@ -29,6 +33,38 @@ const handleError = async (err, ctx, additionalInfo = {}) => {
 				stack: replyError.stack,
 			});
 		}
+	}
+
+	// Отправка текстового сообщения техническому администратору
+	if (process.env.TECNICAL_ADMIN_ID) {
+		try {
+			await ctx.api.sendMessage(
+				process.env.TECNICAL_ADMIN_ID,
+				`Ошибка в боте: ${err.message}\nUpdate ID: ${updateId}\nChat ID: ${
+					ctx?.chat?.id || 'unknown'
+				}\nUser ID: ${
+					ctx?.from?.id || 'unknown'
+				}\n\nDetails:\n\`\`\`json\n${JSON.stringify(
+					errorDetails,
+					null,
+					2
+				)}\n\`\`\``,
+				{ parse_mode: 'Markdown' }
+			);
+			logger.info('Отправлено уведомление техническому администратору', {
+				technicalAdminId: process.env.TECNICAL_ADMIN_ID,
+			});
+		} catch (adminError) {
+			logger.error(
+				'Ошибка при отправке уведомления техническому администратору',
+				{
+					error: adminError.message,
+					stack: adminError.stack,
+				}
+			);
+		}
+	} else {
+		logger.warn('TECNICAL_ADMIN_ID не указан в переменных окружения');
 	}
 };
 
