@@ -11,6 +11,15 @@ const logger = require('../../logger');
 const handleCallbackQuery = async (ctx) => {
 	const action = ctx.callbackQuery.data;
 
+	// Логирование callback-запроса
+	logger.info('Получен callback-запрос', {
+		action,
+		userId: ctx.from?.id,
+		chatId: ctx.chat?.id,
+		username: ctx.from?.username || 'unknown',
+		queryId: ctx.callbackQuery?.id,
+	});
+
 	if (action === CALLBACK_ACTIONS.ASK_QUESTION) {
 		ctx.session[SESSION_KEYS.AWAITING_QUESTION] = true;
 		const sentMessage = await sendOrEditMessage(

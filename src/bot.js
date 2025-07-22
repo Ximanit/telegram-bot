@@ -102,6 +102,7 @@ bot.on('message:photo', async (ctx) => {
 			);
 			ctx.session[SESSION_KEYS.AWAITING_PAYMENT_PHOTO] = false;
 			ctx.session[SESSION_KEYS.PAYMENT_ID] = null;
+			ctx.session[SESSION_KEYS.CART] = [];
 			await sendOrEditMessage(
 				ctx,
 				MESSAGES.paymentPhotoSent,

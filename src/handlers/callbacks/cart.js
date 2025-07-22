@@ -87,7 +87,6 @@ const handleCartCallback = async (ctx, action, userName) => {
 				hasPaid: true,
 				questionCount: userSession.value.questionCount + questionCount, // Накопление вопросов
 				awaitingQuestion: userSession.value.questionCount + questionCount > 0,
-				cart: [],
 			};
 			await updateSession(payment.userId, updatedSessionData);
 			await sendMessageToUser(
