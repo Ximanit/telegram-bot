@@ -115,7 +115,7 @@ const handleQuestionText = async (ctx) => {
 				sentMessage.message_id;
 			logger.error(`Вопрос ${questionId} не найден для ответа`);
 		}
-	} else if (ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID]) {
+	} else if (ctx.session[SESSION_KEYS.AWAITING_QUESTION_CLARIFICATION]) {
 		const question = (await getQuestions()).find(
 			(q) =>
 				q._id.toString() === ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] &&

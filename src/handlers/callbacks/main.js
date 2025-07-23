@@ -24,7 +24,7 @@ const handleCallbackQuery = async (ctx) => {
 		ctx.session[SESSION_KEYS.AWAITING_QUESTION] = true;
 		const sentMessage = await sendOrEditMessage(
 			ctx,
-			'Пожалуйста, задайте ваш вопрос:',
+			MESSAGES.sendYourQuestion,
 			createBackKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
 		);
 		ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =

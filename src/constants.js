@@ -42,7 +42,6 @@ const MESSAGES = {
 	paymentRejected:
 		'Ваш платеж был отклонен. Пожалуйста, свяжитесь с администратором.',
 	paymentReceived: 'Новый платеж от %username\nСумма: %total руб.',
-	dialogueMessageSent: 'Ваше сообщение отправлено.',
 	questionRejectedWithReason: 'Ваш вопрос был отклонен. Причина: %reason',
 	promptReviewAfterClose: 'Ваш вопрос был закрыт. Хотите оставить отзыв?',
 	promptReviewAfterCloseAdmin:
@@ -76,6 +75,7 @@ const MESSAGES = {
 	enterReasonReject: 'Пожалуйста, укажите причину отклонения:',
 	paymentConfirmedAdmin: 'Платеж подтвержден',
 	itemNotFound: 'Элемент не найден.',
+	sendYourQuestion: 'Пожалуйста, задайте ваш вопрос:',
 };
 
 const SERVICES = [
@@ -120,6 +120,8 @@ const SESSION_KEYS = {
 	AWAITING_REJECT_PAYMENT_REASON: 'awaitingRejectPaymentReason',
 	AWAITING_SUPPORT_QUESTION: 'awaitingSupportQuestion',
 	AWAITING_SUPPORT_ANSWER: 'awaitingSupportAnswer',
+	AWAITING_QUESTION_CLARIFICATION: 'awaiting_question_clarification',
+	AWAITING_SUPPORT_CLARIFICATION: 'awaiting_support_clarification',
 	CURRENT_QUESTION_ID: 'currentQuestionId',
 	CURRENT_SUPPORT_QUESTION_ID: 'currentSupportQuestionId',
 	CART: 'cart',

@@ -1,7 +1,6 @@
 const {
 	createStartKeyboard,
 	createBackKeyboard,
-	createSupportQuestionActionKeyboard,
 	createUserSupportQuestionActionKeyboard,
 } = require('../../keyboards');
 const { MESSAGES, SESSION_KEYS } = require('../../constants');
@@ -10,7 +9,6 @@ const {
 	addSupportDialogueMessage,
 	getSupportQuestions,
 } = require('../../services/support');
-const { ObjectId } = require('mongodb');
 const { sendOrEditMessage } = require('../utils');
 
 const validateSupportQuestion = (text) => {
@@ -65,7 +63,7 @@ const handleSupportQuestionText = async (ctx) => {
 		);
 		ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
 			sentMessage.message_id;
-	} else if (ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID]) {
+	} else if (ctx.session[SESSION_KEYS.AWAITING_SUPPORT_CLARIFICATION]) {
 		const question = (await getSupportQuestions()).find(
 			(q) =>
 				q._id.toString() ===

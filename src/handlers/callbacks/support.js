@@ -57,6 +57,7 @@ const handleSupportQuestionCallback = async (ctx, action) => {
 	} else if (action.startsWith('clarify_support_question_')) {
 		const questionId = action.replace('clarify_support_question_', '');
 		ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID] = questionId;
+		ctx.session[SESSION_KEYS.AWAITING_SUPPORT_CLARIFICATION] = true;
 		await sendOrEditMessage(ctx, MESSAGES.enterСlarify, createBackKeyboard());
 		await ctx.answerCallbackQuery();
 	}

@@ -83,9 +83,9 @@ const createQuestionActionKeyboard = (questionId) => {
 const createUserQuestionActionKeyboard = (questionId) => {
 	return new InlineKeyboard()
 		.text('Задать уточнения', `clarify_question_${questionId}`)
-		.text('Закрыть вопрос', `close_question_${questionId}`)
-		.row()
-		.text('Назад', 'back_to_menu');
+		.text('Закрыть вопрос', `close_question_${questionId}`);
+	// .row()
+	// .text('Назад', 'back_to_menu');
 };
 
 const createReviewPromptKeyboard = () => {
