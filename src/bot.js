@@ -6,18 +6,16 @@ const logger = require('./logger');
 const { handleStart } = require('./handlers/commands/start');
 const { handleMeow } = require('./handlers/commands/meow');
 const { handleHelp } = require('./handlers/commands/help');
+const { handleAdmin } = require('./handlers/commands/admin');
 const { handleCallbackQuery } = require('./handlers/callbacks/main');
 const { handleText } = require('./handlers/text/main');
-const { handleError } = require('./handlers/utils');
-const { SESSION_KEYS } = require('./constants');
+const { handleError, sendOrEditMessage } = require('./handlers/utils');
+const { SESSION_KEYS, MESSAGES } = require('./constants');
 const {
 	savePaymentPhoto,
 	updatePaymentStatus,
 } = require('./services/payments');
-const {
-	createPaymentConfirmationKeyboard,
-	createStartKeyboard,
-} = require('./keyboards');
+const { createStartKeyboard } = require('./keyboards');
 
 if (
 	!process.env.API_KEY ||
@@ -52,6 +50,8 @@ const composer = new Composer();
 					[SESSION_KEYS.AWAITING_REJECT_PAYMENT_REASON]: false,
 					[SESSION_KEYS.AWAITING_SUPPORT_QUESTION]: false,
 					[SESSION_KEYS.AWAITING_SUPPORT_ANSWER]: false,
+					[SESSION_KEYS.AWAITING_QUESTION_CLARIFICATION]: false,
+					[SESSION_KEYS.AWAITING_SUPPORT_CLARIFICATION]: false,
 					[SESSION_KEYS.CURRENT_QUESTION_ID]: null,
 					[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID]: null,
 					[SESSION_KEYS.CART]: [],
@@ -59,7 +59,6 @@ const composer = new Composer();
 					[SESSION_KEYS.QUESTION_COUNT]: 0,
 					[SESSION_KEYS.PAYMENT_ID]: null,
 					[SESSION_KEYS.LAST_MESSAGE_ID]: {},
-					[SESSION_KEYS.HISTORY]: [],
 				}),
 			})
 		);
@@ -76,10 +75,13 @@ const composer = new Composer();
 // Регистрируем composer на боте
 bot.use(composer);
 
-// Регистрация обработчиков
+// Регистрация обработчиков команд
 bot.command('start', handleStart);
 bot.command('meow', handleMeow);
 bot.command('help', handleHelp);
+bot.command('admin', handleAdmin);
+
+// Регистрация обработчиков
 bot.on('callback_query:data', handleCallbackQuery);
 bot.on('message:text', handleText);
 bot.on('message:photo', async (ctx) => {
@@ -89,45 +91,31 @@ bot.on('message:photo', async (ctx) => {
 	) {
 		try {
 			const photo = ctx.message.photo[ctx.message.photo.length - 1];
-			const photoFileId = await savePaymentPhoto(
-				photo.file_id,
+			const telegramFileId = photo.file_id;
+			const savedFileId = await savePaymentPhoto(
+				telegramFileId,
 				ctx.session[SESSION_KEYS.PAYMENT_ID],
 				ctx
 			);
 			await updatePaymentStatus(
 				ctx.session[SESSION_KEYS.PAYMENT_ID],
 				'pending',
-				photoFileId
+				savedFileId
 			);
-			await ctx.api.sendPhoto(process.env.ADMIN_ID, photo.file_id, {
-				caption: `Новый платеж от @${
-					ctx.from.username || `ID ${ctx.from.id}`
-				}\nСумма: ${ctx.session[SESSION_KEYS.CART].reduce(
-					(sum, item) => sum + item.price * item.quantity,
-					0
-				)} руб.`,
-				reply_markup: createPaymentConfirmationKeyboard(
-					ctx.session[SESSION_KEYS.PAYMENT_ID]
-				),
-			});
 			ctx.session[SESSION_KEYS.AWAITING_PAYMENT_PHOTO] = false;
 			ctx.session[SESSION_KEYS.PAYMENT_ID] = null;
-			const sentMessage = await ctx.api.sendMessage(
-				ctx.chat.id,
-				'Фото чека отправлено на проверку администратору.',
-				{
-					parse_mode: 'Markdown',
-					reply_markup: createStartKeyboard(
-						ctx.session[SESSION_KEYS.QUESTION_COUNT]
-					),
-				}
+			ctx.session[SESSION_KEYS.CART] = [];
+			await sendOrEditMessage(
+				ctx,
+				MESSAGES.paymentPhotoSent,
+				createStartKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT]),
+				true
 			);
-			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
-				sentMessage.message_id;
-			logger.info('Payment photo uploaded', {
+			logger.info('Фото оплаты загруженно', {
 				paymentId: ctx.session[SESSION_KEYS.PAYMENT_ID],
 				userId: ctx.from.id,
 				chatId: ctx.chat.id,
+				telegramFileId,
 			});
 		} catch (error) {
 			logger.error('Ошибка обработки фото платежа', {

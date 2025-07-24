@@ -1,7 +1,6 @@
 const {
 	createStartKeyboard,
 	createBackKeyboard,
-	createSupportQuestionActionKeyboard,
 	createUserSupportQuestionActionKeyboard,
 } = require('../../keyboards');
 const { MESSAGES, SESSION_KEYS } = require('../../constants');
@@ -10,7 +9,6 @@ const {
 	addSupportDialogueMessage,
 	getSupportQuestions,
 } = require('../../services/support');
-const { ObjectId } = require('mongodb');
 const { sendOrEditMessage } = require('../utils');
 
 const validateSupportQuestion = (text) => {
@@ -33,26 +31,26 @@ const handleSupportQuestionText = async (ctx) => {
 			return;
 		}
 
-		const userInfo = ctx.from.username
-			? `@${ctx.from.username}`
-			: `ID ${ctx.from.id}`;
-		const userName = ctx.from?.first_name || 'Пользователь';
+		// const userInfo = ctx.from.username
+		// 	? `@${ctx.from.username}`
+		// 	: `ID ${ctx.from.id}`;
+		// const userName = ctx.from?.first_name || 'Пользователь';
 		const newQuestion = await addSupportQuestion(
 			ctx.from.id,
 			ctx.from.username,
 			question
 		);
 
-		await ctx.api.sendMessage(
-			process.env.ADMIN_ID,
-			`Новый вопрос техподдержки от ${userInfo} (${userName}):\n${question}`,
-			{
-				parse_mode: 'Markdown',
-				reply_markup: createSupportQuestionActionKeyboard(
-					newQuestion._id.toString()
-				),
-			}
-		);
+		// await ctx.api.sendMessage(
+		// 	process.env.ADMIN_ID,
+		// 	`Новый вопрос техподдержки от ${userInfo} (${userName}):\n${question}`,
+		// 	{
+		// 		parse_mode: 'Markdown',
+		// 		reply_markup: createSupportQuestionActionKeyboard(
+		// 			newQuestion._id.toString()
+		// 		),
+		// 	}
+		// );
 
 		ctx.session[SESSION_KEYS.AWAITING_SUPPORT_QUESTION] = false;
 		ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID] =
@@ -65,7 +63,7 @@ const handleSupportQuestionText = async (ctx) => {
 		);
 		ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][ctx.chat.id] =
 			sentMessage.message_id;
-	} else if (ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID]) {
+	} else if (ctx.session[SESSION_KEYS.AWAITING_SUPPORT_CLARIFICATION]) {
 		const question = (await getSupportQuestions()).find(
 			(q) =>
 				q._id.toString() ===
@@ -73,21 +71,21 @@ const handleSupportQuestionText = async (ctx) => {
 				q.status === 'in_progress'
 		);
 		if (question) {
-			const userInfo = ctx.from.username
-				? `@${ctx.from.username}`
-				: `ID ${ctx.from.id}`;
-			const userName = ctx.from?.first_name || 'Пользователь';
+			// const userInfo = ctx.from.username
+			// 	? `@${ctx.from.username}`
+			// 	: `ID ${ctx.from.id}`;
+			// const userName = ctx.from?.first_name || 'Пользователь';
 			await addSupportDialogueMessage(question._id, 'user', ctx.message.text);
-			await ctx.api.sendMessage(
-				process.env.ADMIN_ID,
-				`Сообщение от ${userInfo} (${userName}) по вопросу техподдержки #${question._id}:\n${ctx.message.text}`,
-				{
-					parse_mode: 'Markdown',
-					reply_markup: createSupportQuestionActionKeyboard(
-						question._id.toString()
-					),
-				}
-			);
+			// await ctx.api.sendMessage(
+			// 	process.env.ADMIN_ID,
+			// 	`Сообщение от ${userInfo} (${userName}) по вопросу техподдержки #${question._id}:\n${ctx.message.text}`,
+			// 	{
+			// 		parse_mode: 'Markdown',
+			// 		reply_markup: createSupportQuestionActionKeyboard(
+			// 			question._id.toString()
+			// 		),
+			// 	}
+			// );
 			const sentMessage = await sendOrEditMessage(
 				ctx,
 				MESSAGES.dialogueMessageSent,
@@ -100,7 +98,7 @@ const handleSupportQuestionText = async (ctx) => {
 			ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID] = null;
 			const sentMessage = await sendOrEditMessage(
 				ctx,
-				'Диалог по этому вопросу техподдержки завершен или вопрос не найден.',
+				MESSAGES.dialogSupportMessagesFinish,
 				createStartKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT]),
 				true
 			);

@@ -1,26 +1,70 @@
 const logger = require('../logger');
 const { SESSION_KEYS, MESSAGES } = require('../constants');
+const { getUserSession, updateLastMessageId } = require('../db');
+const { createStartKeyboard } = require('../keyboards');
 
-const handleError = async (err, ctx) => {
+const handleError = async (err, ctx, additionalInfo = {}) => {
 	const updateId = ctx?.update?.update_id ?? 'unknown';
-	console.error(`Error for update ${updateId}:`, err);
+	const errorDetails = {
+		updateId,
+		error: err.message,
+		stack: err.stack,
+		userId: ctx?.from?.id,
+		chatId: ctx?.chat?.id,
+		...additionalInfo,
+	};
+	logger.error('Произошла ошибка', errorDetails);
+
+	// Отправка сообщения об ошибке пользователю
 	if (ctx?.chat) {
 		try {
-			const sentMessage = await ctx.api.sendMessage(
-				ctx.chat.id,
+			await sendOrEditMessage(
+				ctx,
 				MESSAGES.error,
-				{
-					parse_mode: 'Markdown',
-					reply_markup: createStartKeyboard(ctx.session.questionCount),
-				}
+				createStartKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT]),
+				true
 			);
-			ctx.session.lastMessageId[ctx.chat.id] = sentMessage.message_id;
 			if (ctx.callbackQuery) {
 				await ctx.answerCallbackQuery({ text: MESSAGES.errorCallback });
 			}
 		} catch (replyError) {
-			console.error('Ошибка при отправке сообщения об ошибке:', replyError);
+			logger.error('Ошибка при отправке сообщения об ошибке', {
+				error: replyError.message,
+				stack: replyError.stack,
+			});
 		}
+	}
+
+	// Отправка текстового сообщения техническому администратору
+	if (process.env.TECNICAL_ADMIN_ID) {
+		try {
+			await ctx.api.sendMessage(
+				process.env.TECNICAL_ADMIN_ID,
+				`Ошибка в боте: ${err.message}\nUpdate ID: ${updateId}\nChat ID: ${
+					ctx?.chat?.id || 'unknown'
+				}\nUser ID: ${
+					ctx?.from?.id || 'unknown'
+				}\n\nDetails:\n\`\`\`json\n${JSON.stringify(
+					errorDetails,
+					null,
+					2
+				)}\n\`\`\``,
+				{ parse_mode: 'Markdown' }
+			);
+			logger.info('Отправлено уведомление техническому администратору', {
+				technicalAdminId: process.env.TECNICAL_ADMIN_ID,
+			});
+		} catch (adminError) {
+			logger.error(
+				'Ошибка при отправке уведомления техническому администратору',
+				{
+					error: adminError.message,
+					stack: adminError.stack,
+				}
+			);
+		}
+	} else {
+		logger.warn('TECNICAL_ADMIN_ID не указан в переменных окружения');
 	}
 };
 
@@ -29,74 +73,69 @@ const sendOrEditMessage = async (
 	text,
 	keyboard,
 	forceNew = false,
-	skipHistory = false
+	options = {}
 ) => {
 	try {
 		const chatId = ctx.chat.id;
 		const lastMessageId = ctx.session[SESSION_KEYS.LAST_MESSAGE_ID]?.[chatId];
 		logger.info(
-			`Attempting to send/edit message for chat ${chatId}, lastMessageId: ${lastMessageId}, forceNew: ${forceNew}`
+			`Попытка отправить или удалить сообщение для чата ${chatId}, последнее сообщение: ${lastMessageId}, forceNew: ${forceNew}`
 		);
 
 		let sentMessage;
 		if (lastMessageId && !forceNew) {
 			try {
-				sentMessage = await ctx.api.editMessageText(
-					chatId,
-					lastMessageId,
-					text,
-					{
-						parse_mode: 'Markdown',
-						reply_markup: keyboard,
-					}
-				);
-				logger.info(`Edited message ${lastMessageId} in chat ${chatId}`);
+				await ctx.api.deleteMessage(chatId, lastMessageId);
+				logger.info(`Удалено сообщение ${lastMessageId} в чате ${chatId}`);
 			} catch (error) {
 				logger.warn(
-					`Failed to edit message ${lastMessageId} in chat ${chatId}: ${error.message}`
-				);
-				sentMessage = await ctx.api.sendMessage(chatId, text, {
-					parse_mode: 'Markdown',
-					reply_markup: keyboard,
-				});
-				ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] =
-					ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] || {};
-				ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][chatId] =
-					sentMessage.message_id;
-				logger.info(
-					`Sent new message ${sentMessage.message_id} in chat ${chatId} due to edit failure`
+					`Не удалось удалить сообщение ${lastMessageId} в чате ${chatId}: ${error.message}`
 				);
 			}
+		}
+
+		if (options.photo) {
+			sentMessage = await ctx.api.sendPhoto(chatId, options.photo, {
+				caption: text,
+				parse_mode: 'Markdown',
+				reply_markup: keyboard,
+			});
 		} else {
 			sentMessage = await ctx.api.sendMessage(chatId, text, {
 				parse_mode: 'Markdown',
 				reply_markup: keyboard,
 			});
-			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] =
-				ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] || {};
-			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][chatId] =
-				sentMessage.message_id;
+		}
+
+		ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] =
+			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] || {};
+		ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][chatId] = sentMessage.message_id;
+		try {
+			await updateLastMessageId(ctx.from?.id || chatId, sentMessage.message_id);
 			logger.info(
-				`Sent new message ${sentMessage.message_id} in chat ${chatId}${
-					forceNew ? ' (forced new)' : ''
+				`Сохранен lastMessageId в MongoDB для пользователя ${
+					ctx.from?.id || chatId
 				}`
+			);
+		} catch (saveError) {
+			logger.error(
+				`Ошибка сохранения lastMessageId в MongoDB: ${saveError.message}`,
+				{
+					stack: saveError.stack,
+				}
 			);
 		}
 
-		if (!skipHistory) {
-			ctx.session[SESSION_KEYS.HISTORY] =
-				ctx.session[SESSION_KEYS.HISTORY] || [];
-			ctx.session[SESSION_KEYS.HISTORY].push({ text, keyboard });
-			logger.info(
-				`Updated history for chat ${chatId}: ${JSON.stringify(
-					ctx.session[SESSION_KEYS.HISTORY]
-				)}`
-			);
-		}
+		logger.info(
+			`Отправлено новое сообщение ${sentMessage.message_id} в чат ${chatId}${
+				forceNew ? ' (принудительно новое)' : ''
+			}`
+		);
+
 		return sentMessage;
 	} catch (error) {
 		logger.error(
-			`Error in sendOrEditMessage for chat ${ctx.chat.id}: ${error.message}`,
+			`Ошибка в sendOrEditMessage для чата ${ctx.chat.id}: ${error.message}`,
 			{
 				stack: error.stack,
 			}
@@ -109,24 +148,22 @@ const sendMeow = async (ctx) => {
 	await sendOrEditMessage(ctx, MESSAGES.meow, createStartKeyboard(), true);
 };
 
-const cartUtils = {
-	summary: (cart) => ({
-		count: cart.reduce((sum, item) => sum + item.quantity, 0),
-		total: cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
-	}),
-	format: (cart) => {
-		if (!cart.length) return MESSAGES.cartEmpty;
-		const items = cart
-			.map(
-				(item, i) =>
-					`${i + 1}. ${item.name} — ${item.price} руб. (x${item.quantity})`
-			)
-			.join('\n');
-		const { total } = cartUtils.summary(cart);
-		return MESSAGES.cartContent
-			.replace('%items', items)
-			.replace('%total', total);
-	},
+const sendMessageToUser = async (userId, text, keyboard, ctx) => {
+	const userSession = await getUserSession(userId, ctx);
+	if (!userSession) return;
+	const userCtx = {
+		chat: { id: userId },
+		session: userSession.value,
+		api: ctx.api,
+		answerCallbackQuery: () => {},
+	};
+	const sentMessage = await sendOrEditMessage(userCtx, text, keyboard);
+	await updateLastMessageId(userId, sentMessage.message_id);
 };
 
-module.exports = { sendOrEditMessage, sendMeow, handleError, cartUtils };
+module.exports = {
+	sendOrEditMessage,
+	sendMeow,
+	handleError,
+	sendMessageToUser,
+};

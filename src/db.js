@@ -1,6 +1,8 @@
-const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
 const logger = require('./logger');
 require('dotenv').config();
+
+const { SESSION_KEYS } = require('./constants');
 
 const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
 const dbName = process.env.DB_NAME || 'telegram_bot';
@@ -49,9 +51,9 @@ async function updateSession(userId, updates) {
 					{ $set: { value: { ...currentSession.value, ...updates } } },
 					{ session }
 				);
-				logger.info('Session updated', { userId });
+				logger.info('Сессия обновлена', { userId });
 			} else {
-				logger.warn('Session not found', { userId });
+				logger.warn('Сессия не найдена', { userId });
 			}
 		});
 	} catch (error) {
@@ -66,4 +68,51 @@ async function updateSession(userId, updates) {
 	}
 }
 
-module.exports = { connectDB, closeDB, updateSession };
+async function getUserSession(userId, ctx) {
+	const db = await connectDB();
+	const sessions = db.collection('sessions');
+	const userSession = await sessions.findOne({ key: userId.toString() });
+	if (!userSession) {
+		logger.error(`Сессия пользователя: ${userId} не найдена`);
+		await sendOrEditMessage(
+			ctx,
+			'Ошибка: сессия пользователя не найдена.',
+			createBackKeyboard(),
+			true
+		);
+		return null;
+	}
+	return userSession;
+}
+
+async function updateLastMessageId(userId, messageId) {
+	await updateSession(userId, {
+		[SESSION_KEYS.LAST_MESSAGE_ID]: {
+			[userId]: messageId,
+		},
+	});
+	logger.info(
+		`Обновление LAST_MESSAGE_ID для пользователя ${userId}: ${messageId}`
+	);
+}
+
+const getItemById = async (type, id) => {
+	const collectionMap = {
+		reviews: 'reviews',
+		payments: 'payments',
+		questions: 'questions',
+		support: 'support_questions',
+	};
+	const collection = collectionMap[type];
+	if (!collection) return null;
+	return await db.collection(collection).findOne({ _id: new ObjectId(id) });
+};
+
+module.exports = {
+	connectDB,
+	closeDB,
+	updateSession,
+	getUserSession,
+	updateLastMessageId,
+	getItemById,
+};

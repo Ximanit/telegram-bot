@@ -1,23 +1,19 @@
 const {
 	createBackKeyboard,
-	createQuestionActionKeyboard,
-	createUserQuestionActionKeyboard,
 	createReviewPromptKeyboard,
+	createBackKeyboardADmin,
 } = require('../../keyboards');
-const {
-	updateQuestionStatus,
-	addDialogueMessage,
-} = require('../../services/questions');
+const { updateQuestionStatus } = require('../../services/questions');
 const { MESSAGES, SESSION_KEYS } = require('../../constants');
-const { sendOrEditMessage } = require('../utils');
-const { updateSession } = require('../../db');
+const { sendOrEditMessage, sendMessageToUser } = require('../utils');
 const logger = require('../../logger');
+const { handleAdminCallback } = require('../callbacks/admin');
 
 const handleQuestionCallback = async (ctx, action) => {
 	logger.info(
-		`Before handleQuestionCallback: chatId=${
+		`Обработка callback действия ${action} для чата ${
 			ctx.chat.id
-		}, session=${JSON.stringify(ctx.session)}`
+		}, сессия: ${JSON.stringify(ctx.session)}`
 	);
 	if (action.startsWith('answer_question_')) {
 		const questionId = action.replace('answer_question_', '');
@@ -27,12 +23,15 @@ const handleQuestionCallback = async (ctx, action) => {
 			ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = questionId;
 			await sendOrEditMessage(
 				ctx,
-				'Пожалуйста, введите ваш ответ:',
-				createBackKeyboard(),
-				true
+				MESSAGES.pleaseEnterYourAnswer,
+				createBackKeyboardADmin()
+			);
+			logger.info(
+				`Администратор ${ctx.from.id} начал отвечать на вопрос ${questionId}`
 			);
 			await ctx.answerCallbackQuery();
 		} else {
+			logger.error(`Вопрос ${questionId} не найден при попытке ответа`);
 			await ctx.answerCallbackQuery('Ошибка: вопрос не найден');
 		}
 	} else if (action.startsWith('reject_question_')) {
@@ -41,9 +40,12 @@ const handleQuestionCallback = async (ctx, action) => {
 		ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = questionId;
 		await sendOrEditMessage(
 			ctx,
-			'Пожалуйста, укажите причину отклонения:',
+			MESSAGES.enterReasonReject,
 			createBackKeyboard(),
 			true
+		);
+		logger.info(
+			`Администратор ${ctx.from.id} ввел причину отклонения для вопроса ${questionId}`
 		);
 		await ctx.answerCallbackQuery();
 	} else if (action.startsWith('close_question_')) {
@@ -54,40 +56,32 @@ const handleQuestionCallback = async (ctx, action) => {
 				ctx.from.id.toString() === process.env.ADMIN_ID
 					? 'Администратор'
 					: 'Пользователь';
-			const userCtx = {
-				chat: { id: question.userId },
-				session: ctx.session,
-				api: ctx.api,
-				answerCallbackQuery: () => {},
-			};
 			const messageText =
 				sender === 'Администратор'
 					? MESSAGES.promptReviewAfterCloseAdmin
 					: MESSAGES.promptReviewAfterClose;
-			const sentMessage = await sendOrEditMessage(
-				userCtx,
+			await sendMessageToUser(
+				question.userId,
 				messageText,
 				createReviewPromptKeyboard(),
-				false
+				ctx
 			);
 			ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = null;
-			await updateSession(question.userId, {
-				[SESSION_KEYS.LAST_MESSAGE_ID]: {
-					[question.userId]: sentMessage.message_id,
-				},
-			});
+			logger.info(`Вопрос ${questionId} закрыт администратором ${ctx.from.id}`);
 			await ctx.answerCallbackQuery('Вопрос закрыт');
+
+			await handleAdminCallback(ctx, 'admin_questions');
 		} else {
+			logger.error(`Вопрос ${questionId} не найден при попытке закрытия`);
 			await ctx.answerCallbackQuery('Ошибка: вопрос не найден');
 		}
 	} else if (action.startsWith('clarify_question_')) {
 		const questionId = action.replace('clarify_question_', '');
 		ctx.session[SESSION_KEYS.CURRENT_QUESTION_ID] = questionId;
-		await sendOrEditMessage(
-			ctx,
-			'Пожалуйста, отправьте уточнение:',
-			createBackKeyboard(),
-			true
+		ctx.session[SESSION_KEYS.AWAITING_QUESTION_CLARIFICATION] = true;
+		await sendOrEditMessage(ctx, MESSAGES.enterСlarify, createBackKeyboard());
+		logger.info(
+			`Администратор ${ctx.from.id} запросил уточнение для вопроса ${questionId}`
 		);
 		await ctx.answerCallbackQuery();
 	}

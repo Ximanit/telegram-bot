@@ -3,6 +3,7 @@ const { handleNavigationCallback } = require('./navigation');
 const { handleReviewCallback } = require('./reviews');
 const { handleQuestionCallback } = require('./questions');
 const { handleSupportQuestionCallback } = require('./support');
+const { handleAdminCallback } = require('./admin');
 
 const handleCallbackQuery = async (ctx) => {
 	const action = ctx.callbackQuery.data;
@@ -31,10 +32,15 @@ const handleCallbackQuery = async (ctx) => {
 	}
 
 	if (
+		action === 'back' ||
 		action === 'back_to_menu' ||
 		action === 'back_to_price' ||
+		action === 'back_from_payment_photo' ||
+		action === 'back_to_admin_menu' ||
 		action === 'show_terms' ||
-		action === 'show_price'
+		action === 'show_price' ||
+		action === 'show_profile' ||
+		action.startsWith('view_question_')
 	) {
 		return handleNavigationCallback(ctx, action);
 	}
@@ -56,6 +62,18 @@ const handleCallbackQuery = async (ctx) => {
 		return handleSupportQuestionCallback(ctx, action);
 	}
 
+	if (
+		action === 'admin_reviews' ||
+		action === 'admin_payments' ||
+		action === 'admin_questions' ||
+		action === 'admin_support' ||
+		action.startsWith('select_reviews_') ||
+		action.startsWith('select_payments_') ||
+		action.startsWith('select_questions_') ||
+		action.startsWith('select_support_')
+	) {
+		return handleAdminCallback(ctx, action);
+	}
 	if (action === 'noop') {
 		return ctx.answerCallbackQuery();
 	}

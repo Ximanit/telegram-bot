@@ -1,6 +1,7 @@
 const { MESSAGES, SERVICES, SESSION_KEYS } = require('../constants');
 const { createPriceKeyboard, createCartKeyboard } = require('../keyboards');
-const { sendOrEditMessage, cartUtils } = require('../handlers/utils');
+const { sendOrEditMessage } = require('../handlers/utils');
+const { cartUtils } = require('../handlers/utils/cart');
 
 const addToCart = async (ctx, serviceId) => {
 	const service = SERVICES.find((s) => s.id === serviceId);

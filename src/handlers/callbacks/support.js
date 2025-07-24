@@ -1,14 +1,12 @@
 const {
 	createBackKeyboard,
 	createStartKeyboard,
-	createUserSupportQuestionActionKeyboard,
+	createBackKeyboardADmin,
 } = require('../../keyboards');
-const {
-	updateSupportQuestionStatus,
-	addSupportDialogueMessage,
-} = require('../../services/support');
+const { updateSupportQuestionStatus } = require('../../services/support');
 const { MESSAGES, SESSION_KEYS } = require('../../constants');
-const { sendOrEditMessage } = require('../utils');
+const { sendOrEditMessage, sendMessageToUser } = require('../utils');
+const { handleNavigationCallback } = require('../callbacks/navigation');
 
 const handleSupportQuestionCallback = async (ctx, action) => {
 	if (action.startsWith('answer_support_question_')) {
@@ -22,8 +20,8 @@ const handleSupportQuestionCallback = async (ctx, action) => {
 			ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID] = questionId;
 			await sendOrEditMessage(
 				ctx,
-				'Пожалуйста, введите ваш ответ:',
-				createBackKeyboard()
+				MESSAGES.pleaseEnterYourAnswer,
+				createBackKeyboardADmin()
 			);
 			await ctx.answerCallbackQuery();
 		} else {
@@ -38,37 +36,29 @@ const handleSupportQuestionCallback = async (ctx, action) => {
 					? 'Администратор'
 					: 'Пользователь';
 
-			const userCtx = {
-				chat: { id: question.userId },
-				session: ctx.session,
-				api: ctx.api,
-				answerCallbackQuery: () => {},
-			};
-
 			const messageText =
 				sender === 'Администратор'
 					? 'Вопрос техподдержки закрыт администратором.'
 					: 'Вопрос техподдержки закрыт.';
 
-			await sendOrEditMessage(
-				userCtx,
+			await sendMessageToUser(
+				question.userId,
 				messageText,
-				createStartKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT])
+				createStartKeyboard(ctx.session[SESSION_KEYS.QUESTION_COUNT]),
+				ctx
 			);
 
 			ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID] = null;
 			await ctx.answerCallbackQuery('Вопрос техподдержки закрыт');
+			handleNavigationCallback(ctx, 'back_to_admin_menu');
 		} else {
 			await ctx.answerCallbackQuery('Ошибка: вопрос техподдержки не найден');
 		}
 	} else if (action.startsWith('clarify_support_question_')) {
 		const questionId = action.replace('clarify_support_question_', '');
 		ctx.session[SESSION_KEYS.CURRENT_SUPPORT_QUESTION_ID] = questionId;
-		await sendOrEditMessage(
-			ctx,
-			'Пожалуйста, отправьте уточнение:',
-			createBackKeyboard()
-		);
+		ctx.session[SESSION_KEYS.AWAITING_SUPPORT_CLARIFICATION] = true;
+		await sendOrEditMessage(ctx, MESSAGES.enterСlarify, createBackKeyboard());
 		await ctx.answerCallbackQuery();
 	}
 };

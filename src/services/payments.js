@@ -1,22 +1,6 @@
+const { ObjectId } = require('mongodb');
 const { connectDB } = require('../db');
-const { ObjectId, GridFSBucket } = require('mongodb');
-const axios = require('axios');
 const logger = require('../logger');
-
-async function getPayments() {
-	try {
-		const db = await connectDB();
-		const payments = await db.collection('payments').find({}).toArray();
-		logger.info('Fetched payments', { count: payments.length });
-		return payments;
-	} catch (error) {
-		logger.error('Ошибка чтения платежей из MongoDB', {
-			error: error.message,
-			stack: error.stack,
-		});
-		return [];
-	}
-}
 
 async function addPayment(userId, username, cart, total) {
 	try {
@@ -27,7 +11,7 @@ async function addPayment(userId, username, cart, total) {
 			cart,
 			total,
 			status: 'pending',
-			photoFileId: null,
+			telegramFileId: null,
 			rejectReason: null,
 			timestamp: new Date().toISOString(),
 			questionCount: cart.reduce(
@@ -56,7 +40,7 @@ async function addPayment(userId, username, cart, total) {
 async function updatePaymentStatus(
 	_id,
 	status,
-	photoFileId = null,
+	telegramFileId = null,
 	rejectReason = null
 ) {
 	try {
@@ -66,12 +50,12 @@ async function updatePaymentStatus(
 
 		const payment = await collection.findOne({ _id: paymentId });
 		if (!payment) {
-			logger.warn('Payment not found', { paymentId });
+			logger.warn('Платеж не найден', { paymentId });
 			return null;
 		}
 
 		const updateFields = { status };
-		if (photoFileId) updateFields.photoFileId = photoFileId;
+		if (telegramFileId) updateFields.telegramFileId = telegramFileId;
 		if (rejectReason) updateFields.rejectReason = rejectReason;
 
 		const result = await collection.updateOne(
@@ -80,12 +64,16 @@ async function updatePaymentStatus(
 		);
 
 		if (result.matchedCount === 0) {
-			logger.warn('Payment not found during update', { paymentId });
+			logger.warn('Платеж не найден при обновлении', { paymentId });
 			return null;
 		}
 
 		const updatedPayment = await collection.findOne({ _id: paymentId });
-		logger.info('Payment updated', { paymentId, status });
+		logger.info('Платеж обновлен', {
+			paymentId,
+			status,
+			telegramFileId,
+		});
 		return updatedPayment;
 	} catch (error) {
 		logger.error('Ошибка обновления статуса платежа в MongoDB', {
@@ -97,31 +85,48 @@ async function updatePaymentStatus(
 	}
 }
 
-async function savePaymentPhoto(fileId, paymentId, ctx) {
+async function getPayments() {
 	try {
 		const db = await connectDB();
-		const bucket = new GridFSBucket(db, { bucketName: 'payment_photos' });
-
-		const file = await ctx.api.getFile(fileId);
-		const fileUrl = `https://api.telegram.org/file/bot${process.env.API_KEY}/${file.file_path}`;
-		const response = await axios.get(fileUrl, { responseType: 'stream' });
-
-		const stream = bucket.openUploadStream(
-			`payment_${paymentId}_${Date.now()}.jpg`,
-			{
-				metadata: { paymentId, userId: ctx.from.id },
-			}
-		);
-
-		await new Promise((resolve, reject) => {
-			response.data.pipe(stream).on('finish', resolve).on('error', reject);
+		const payments = await db.collection('payments').find({}).toArray();
+		logger.info(`Получено ${payments.length} платежей`, {
+			count: payments.length,
 		});
+		return payments;
+	} catch (error) {
+		logger.error('Ошибка чтения платежей из MongoDB', {
+			error: error.message,
+			stack: error.stack,
+		});
+		return [];
+	}
+}
 
-		logger.info('Saved payment photo to GridFS', {
+async function getPendingPayments() {
+	try {
+		const db = await connectDB();
+		const payments = await db
+			.collection('payments')
+			.find({ status: 'pending' })
+			.toArray();
+		logger.info(`Получено ${payments.length} ожидающих платежей из MongoDB`);
+		return payments;
+	} catch (error) {
+		logger.error('Ошибка чтения ожидающих платежей из MongoDB', {
+			error: error.message,
+			stack: error.stack,
+		});
+		return [];
+	}
+}
+
+async function savePaymentPhoto(fileId, paymentId, ctx) {
+	try {
+		logger.info('Фото платежа сохранено', {
 			paymentId,
-			fileId: stream.id,
+			telegramFileId: fileId,
 		});
-		return stream.id.toString();
+		return fileId;
 	} catch (error) {
 		logger.error('Ошибка сохранения фото платежа', {
 			error: error.message,
@@ -138,4 +143,5 @@ module.exports = {
 	updatePaymentStatus,
 	getPayments,
 	savePaymentPhoto,
+	getPendingPayments,
 };

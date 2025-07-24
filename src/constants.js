@@ -42,7 +42,6 @@ const MESSAGES = {
 	paymentRejected:
 		'Ваш платеж был отклонен. Пожалуйста, свяжитесь с администратором.',
 	paymentReceived: 'Новый платеж от %username\nСумма: %total руб.',
-	dialogueMessageSent: 'Ваше сообщение отправлено.',
 	questionRejectedWithReason: 'Ваш вопрос был отклонен. Причина: %reason',
 	promptReviewAfterClose: 'Ваш вопрос был закрыт. Хотите оставить отзыв?',
 	promptReviewAfterCloseAdmin:
@@ -55,7 +54,30 @@ const MESSAGES = {
 		'Вопрос слишком короткий. Пожалуйста, опишите проблему подробнее (минимум 5 символов).',
 	dialogueMessageSent:
 		'Ваше сообщение отправлено. Ожидайте ответа администратора.',
+	dialogSupportMessagesFinish:
+		'Диалог по этому вопросу техподдержки завершен или вопрос не найден.',
+	newAdminMessage: 'Сообщение от администратора:',
+	messageSendUser: 'Сообщение отправлено пользователю.',
+	questionNotFound: 'Ошибка: вопрос не найден.',
+	dialogFinishOrNotFound:
+		'Диалог по этому вопросу завершен или вопрос не найден.',
+	paymentRejectedReasonSend:
+		'Платеж отклонен, причина отправлена пользователю.',
+	errorPaymentNotFound: 'Ошибка: платеж не найден.',
+	questionRejectedReasonSendToUser:
+		'Вопрос отклонен, причина отправлена пользователю.',
+	enterQuestionSupport:
+		'Пожалуйста, опишите ваш вопрос для технической поддержки:',
+	admniEnterClose: 'У вас нет доступа к админ-панели.',
+	enterAdmin: 'Добро пожаловать в админ-панель!\nВыберите раздел:',
+	pleaseEnterYourAnswer: 'Пожалуйста, введите ваш ответ:',
+	enterСlarify: 'Пожалуйста, отправьте уточнение:',
+	enterReasonReject: 'Пожалуйста, укажите причину отклонения:',
+	paymentConfirmedAdmin: 'Платеж подтвержден',
+	itemNotFound: 'Элемент не найден.',
+	sendYourQuestion: 'Пожалуйста, задайте ваш вопрос:',
 };
+
 const SERVICES = [
 	{ id: 'single_question', name: 'Ответ на 1 вопрос', price: 2000 },
 ];
@@ -98,6 +120,8 @@ const SESSION_KEYS = {
 	AWAITING_REJECT_PAYMENT_REASON: 'awaitingRejectPaymentReason',
 	AWAITING_SUPPORT_QUESTION: 'awaitingSupportQuestion',
 	AWAITING_SUPPORT_ANSWER: 'awaitingSupportAnswer',
+	AWAITING_QUESTION_CLARIFICATION: 'awaiting_question_clarification',
+	AWAITING_SUPPORT_CLARIFICATION: 'awaiting_support_clarification',
 	CURRENT_QUESTION_ID: 'currentQuestionId',
 	CURRENT_SUPPORT_QUESTION_ID: 'currentSupportQuestionId',
 	CART: 'cart',
@@ -105,7 +129,6 @@ const SESSION_KEYS = {
 	QUESTION_COUNT: 'questionCount',
 	PAYMENT_ID: 'paymentId',
 	LAST_MESSAGE_ID: 'lastMessageId',
-	HISTORY: 'history',
 };
 
 module.exports = {

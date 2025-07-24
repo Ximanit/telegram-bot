@@ -3,11 +3,21 @@ const { MESSAGES } = require('../../constants');
 const { sendOrEditMessage } = require('../utils');
 const { getReviews, updateReviewStatus } = require('../../services/reviews');
 
+filterReviews = async () => {
+	const reviews = await getReviews();
+	const approvedReviews = reviews.filter((r) => r.status === 'approved');
+	return approvedReviews.length
+		? `${MESSAGES.reviewsHeader}\n${approvedReviews
+				.map((r) => `- ${r.text} (@${r.username})`)
+				.join('\n')}`
+		: MESSAGES.noReviews;
+};
+
 const callbackHandlers = {
 	show_reviews: {
 		text: async (ctx) => {
 			const reviews = await getReviews();
-			const approvedReviews = reviews.filter((r) => r.approved);
+			const approvedReviews = reviews.filter((r) => r.status === 'approved');
 			return approvedReviews.length
 				? `${MESSAGES.reviewsHeader}\n${approvedReviews
 						.map((r) => `- ${r.text} (@${r.username})`)
@@ -31,34 +41,27 @@ const callbackHandlers = {
 			);
 			return;
 		}
-		const review = await updateReviewStatus(reviewId, true);
+		const review = await updateReviewStatus(reviewId, 'approved');
 		if (review) {
 			await ctx.answerCallbackQuery(MESSAGES.reviewApproved);
-			await sendOrEditMessage(
-				ctx,
-				MESSAGES.reviewsHeader,
-				createBackKeyboard()
-			);
+
+			await sendOrEditMessage(ctx, await filterReviews(), createBackKeyboard());
 		} else {
 			await ctx.answerCallbackQuery('Ошибка: отзыв не найден');
 		}
 	},
 	reject_review: async (ctx) => {
-		const reviewId = ctx.callbackQuery.data.replace('approve_review_', '');
+		const reviewId = ctx.callbackQuery.data.replace('reject_review_', '');
 		if (!reviewId || reviewId === 'undefined') {
 			await ctx.answerCallbackQuery(
 				'Ошибка: некорректный идентификатор отзыва'
 			);
 			return;
 		}
-		const review = await updateReviewStatus(reviewId, false);
+		const review = await updateReviewStatus(reviewId, 'reject');
 		if (review) {
 			await ctx.answerCallbackQuery(MESSAGES.reviewRejected);
-			await sendOrEditMessage(
-				ctx,
-				MESSAGES.reviewsHeader,
-				createBackKeyboard()
-			);
+			await sendOrEditMessage(ctx, await filterReviews(), createBackKeyboard());
 		} else {
 			await ctx.answerCallbackQuery('Ошибка: отзыв не найден');
 		}
