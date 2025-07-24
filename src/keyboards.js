@@ -90,7 +90,6 @@ const createUserQuestionActionKeyboard = (questionId) => {
 
 const createUserQuestionsKeyboard = (questions) => {
 	const keyboard = new InlineKeyboard();
-	console.log(questions);
 	if (questions.length) {
 		questions.forEach((question) => {
 			const questionText = `Вопрос: ${question.text.substring(0, 50)}...`;

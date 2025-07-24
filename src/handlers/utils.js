@@ -110,11 +110,12 @@ const sendOrEditMessage = async (
 		ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] =
 			ctx.session[SESSION_KEYS.LAST_MESSAGE_ID] || {};
 		ctx.session[SESSION_KEYS.LAST_MESSAGE_ID][chatId] = sentMessage.message_id;
-
 		try {
-			await updateLastMessageId(ctx.from.id, sentMessage.message_id);
+			await updateLastMessageId(ctx.from?.id || chatId, sentMessage.message_id);
 			logger.info(
-				`Сохранен lastMessageId в MongoDB для пользователя ${ctx.from.id}`
+				`Сохранен lastMessageId в MongoDB для пользователя ${
+					ctx.from?.id || chatId
+				}`
 			);
 		} catch (saveError) {
 			logger.error(

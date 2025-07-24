@@ -58,7 +58,6 @@ const callbackHandlers = {
 			const userQuestions = questions.filter(
 				(q) => q.userId.toString() === ctx.from.id.toString()
 			);
-			console.log(userQuestions);
 			const keyboard = createUserQuestionsKeyboard(userQuestions);
 			return keyboard;
 		},
