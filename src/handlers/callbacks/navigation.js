@@ -3,11 +3,14 @@ const {
 	createPriceKeyboard,
 	createBackKeyboard,
 	createAdminMenuKeyboard,
+	createUserQuestionsKeyboard,
+	createUserQuestionActionKeyboard,
 } = require('../../keyboards');
 const { MESSAGES, SESSION_KEYS } = require('../../constants');
 const { sendOrEditMessage } = require('../utils');
 const { cartUtils } = require('../utils/cart');
 const { InlineKeyboard } = require('grammy');
+const { getProcessingQuestions } = require('../../services/questions');
 const logger = require('../../logger');
 
 const callbackHandlers = {
@@ -37,14 +40,28 @@ const callbackHandlers = {
 
 	// Показ личного кабинета
 	show_profile: {
-		text: (ctx) => {
+		text: async (ctx) => {
+			const questions = await getProcessingQuestions();
+			const userQuestions = questions.filter(
+				(q) => q.userId.toString() === ctx.from.id.toString()
+			);
 			let currentMessage = `Ваш личный кабинет:\n\nДоступно вопросов: ${
-				ctx.session[SESSION_KEYS.QUESTION_COUNT]
-			}`;
-
+				ctx.session[SESSION_KEYS.QUESTION_COUNT] || 0
+			}\n\nАктивные вопросы:\n`;
+			if (!userQuestions.length) {
+				currentMessage += 'Нет активных вопросов.';
+			}
 			return currentMessage;
 		},
-		keyboard: () => createBackKeyboard(),
+		keyboard: async (ctx) => {
+			const questions = await getProcessingQuestions();
+			const userQuestions = questions.filter(
+				(q) => q.userId.toString() === ctx.from.id.toString()
+			);
+			console.log(userQuestions);
+			const keyboard = createUserQuestionsKeyboard(userQuestions);
+			return keyboard;
+		},
 		logMessage: (ctx) => `Пользователь ${ctx.chat.id} просмотрел профиль`,
 	},
 
@@ -187,7 +204,39 @@ const callbackHandlers = {
 };
 
 const handleNavigationCallback = async (ctx, action) => {
-	// Определяем контекст для кнопки "Назад"
+	if (action.startsWith('view_question_')) {
+		const questionId = action.replace('view_question_', '');
+		const questions = await getProcessingQuestions();
+		const question = questions.find((q) => q._id.toString() === questionId);
+		if (question) {
+			let message = `Вопрос: ${question.text}\n\nДиалог:\n`;
+			if (question.dialogue && question.dialogue.length) {
+				message += question.dialogue
+					.map((msg, index) => `${index + 1}. ${msg.sender}: ${msg.message}`)
+					.join('\n');
+			} else {
+				message += 'Диалог пуст.';
+			}
+			await sendOrEditMessage(
+				ctx,
+				message,
+				createUserQuestionActionKeyboard(questionId)
+			);
+			logger.info(
+				`Пользователь ${ctx.chat.id} просмотрел вопрос ${questionId}`
+			);
+		} else {
+			await sendOrEditMessage(
+				ctx,
+				MESSAGES.questionNotFound,
+				createBackKeyboard()
+			);
+			logger.error(`Вопрос ${questionId} не найден`);
+		}
+		await ctx.answerCallbackQuery();
+		return;
+	}
+
 	let backAction = 'back_to_menu';
 	if (ctx.session[SESSION_KEYS.AWAITING_QUESTION]) {
 		backAction = 'back_from_question';
@@ -207,7 +256,6 @@ const handleNavigationCallback = async (ctx, action) => {
 		backAction = 'back_from_support_answer';
 	}
 
-	// Если нажата кнопка "Назад", используем контекстно-зависимый обработчик
 	const handler = callbackHandlers[action] || callbackHandlers[backAction];
 	if (handler) {
 		logger.info(
@@ -215,9 +263,11 @@ const handleNavigationCallback = async (ctx, action) => {
 				action || backAction
 			} для пользователя ${ctx.chat.id}, сессия: ${JSON.stringify(ctx.session)}`
 		);
-		const text =
-			typeof handler.text === 'function' ? handler.text(ctx) : handler.text;
-		const keyboard = handler.keyboard(ctx);
+		// Дожидаемся выполнения асинхронных функций
+		const text = await (typeof handler.text === 'function'
+			? handler.text(ctx)
+			: Promise.resolve(handler.text));
+		const keyboard = await handler.keyboard(ctx);
 		await sendOrEditMessage(ctx, text, keyboard);
 		if (handler.resetSession) {
 			handler.resetSession(ctx);

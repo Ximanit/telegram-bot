@@ -83,9 +83,22 @@ const createQuestionActionKeyboard = (questionId) => {
 const createUserQuestionActionKeyboard = (questionId) => {
 	return new InlineKeyboard()
 		.text('Задать уточнения', `clarify_question_${questionId}`)
-		.text('Закрыть вопрос', `close_question_${questionId}`);
-	// .row()
-	// .text('Назад', 'back_to_menu');
+		.text('Закрыть вопрос', `close_question_${questionId}`)
+		.row()
+		.text('Назад', 'back_to_menu');
+};
+
+const createUserQuestionsKeyboard = (questions) => {
+	const keyboard = new InlineKeyboard();
+	console.log(questions);
+	if (questions.length) {
+		questions.forEach((question) => {
+			const questionText = `Вопрос: ${question.text.substring(0, 50)}...`;
+			keyboard.text(questionText, `view_question_${question._id}`).row();
+		});
+	}
+	keyboard.text('На главную', 'back_to_menu');
+	return keyboard;
 };
 
 const createReviewPromptKeyboard = () => {
@@ -141,4 +154,5 @@ module.exports = {
 	createBackCartKeyboard,
 	createAdminMenuKeyboard,
 	createBackKeyboardADmin,
+	createUserQuestionsKeyboard,
 };

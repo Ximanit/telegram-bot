@@ -39,7 +39,8 @@ const handleCallbackQuery = async (ctx) => {
 		action === 'back_to_admin_menu' ||
 		action === 'show_terms' ||
 		action === 'show_price' ||
-		action === 'show_profile'
+		action === 'show_profile' ||
+		action.startsWith('view_question_')
 	) {
 		return handleNavigationCallback(ctx, action);
 	}
