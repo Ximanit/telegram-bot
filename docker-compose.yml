@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   bot:
     build:
@@ -9,10 +7,10 @@ services:
       - API_KEY=${API_KEY}
       - ADMIN_ID=${ADMIN_ID}
       - CARD_DETAILS=${CARD_DETAILS}
-      - MONGODB_URI=mongodb://mongo:27017/telegram_bot
+      - MONGODB_URI=${MONGODB_URI}
       - DB_NAME=telegram_bot
       - TECNICAL_ADMIN_ID=${TECNICAL_ADMIN_ID}
-      - NODE_ENV=production
+      - NODE_ENV=test
     depends_on:
       - mongo
     volumes:
