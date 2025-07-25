@@ -37,25 +37,18 @@ async function closeDB() {
 
 async function updateSession(userId, updates) {
 	const db = await connectDB();
-	const session = await client.startSession();
 	try {
-		await session.withTransaction(async () => {
-			const sessions = db.collection('sessions');
-			const currentSession = await sessions.findOne(
+		const sessions = db.collection('sessions');
+		const currentSession = await sessions.findOne({ key: userId.toString() });
+		if (currentSession) {
+			await sessions.updateOne(
 				{ key: userId.toString() },
-				{ session }
+				{ $set: { value: { ...currentSession.value, ...updates } } }
 			);
-			if (currentSession) {
-				await sessions.updateOne(
-					{ key: userId.toString() },
-					{ $set: { value: { ...currentSession.value, ...updates } } },
-					{ session }
-				);
-				logger.info('Сессия обновлена', { userId });
-			} else {
-				logger.warn('Сессия не найдена', { userId });
-			}
-		});
+			logger.info('Сессия обновлена', { userId });
+		} else {
+			logger.warn('Сессия не найдена', { userId });
+		}
 	} catch (error) {
 		logger.error('Ошибка обновления сессии', {
 			userId,
@@ -63,8 +56,6 @@ async function updateSession(userId, updates) {
 			stack: error.stack,
 		});
 		throw error;
-	} finally {
-		await session.endSession();
 	}
 }
 
