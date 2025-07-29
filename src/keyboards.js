@@ -2,7 +2,7 @@ const { InlineKeyboard } = require('grammy');
 
 const createStartKeyboard = (questionCount = 0) => {
 	const keyboard = new InlineKeyboard()
-		.text('Условия', 'show_terms')
+		.text('О боте', 'show_terms')
 		.text('Прайс', 'show_price')
 		.row()
 		.text('Отзывы', 'show_reviews')
