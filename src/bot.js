@@ -102,9 +102,6 @@ bot.on('message:photo', async (ctx) => {
 				'pending',
 				savedFileId
 			);
-			ctx.session[SESSION_KEYS.AWAITING_PAYMENT_PHOTO] = false;
-			ctx.session[SESSION_KEYS.PAYMENT_ID] = null;
-			ctx.session[SESSION_KEYS.CART] = [];
 			await sendOrEditMessage(
 				ctx,
 				MESSAGES.paymentPhotoSent,
@@ -117,6 +114,9 @@ bot.on('message:photo', async (ctx) => {
 				chatId: ctx.chat.id,
 				telegramFileId,
 			});
+			ctx.session[SESSION_KEYS.AWAITING_PAYMENT_PHOTO] = false;
+			ctx.session[SESSION_KEYS.PAYMENT_ID] = null;
+			ctx.session[SESSION_KEYS.CART] = [];
 		} catch (error) {
 			logger.error('Ошибка обработки фото платежа', {
 				error: error.message,

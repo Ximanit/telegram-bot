@@ -153,7 +153,7 @@ const handleAdminCallback = async (ctx, action) => {
 					} else if (itemType === 'payments') {
 						const caption = formatItemFull(item, itemType);
 						keyboard = createPaymentConfirmationKeyboard(itemId);
-						logger.info(`Попытка отправить фото платежа`, {
+						logger.info(`Попытка загрузить фото платежа`, {
 							paymentId: itemId,
 							telegramFileId: item.telegramFileId,
 						});
@@ -163,12 +163,12 @@ const handleAdminCallback = async (ctx, action) => {
 								await sendOrEditMessage(ctx, caption, keyboard, false, {
 									photo: item.telegramFileId,
 								});
-								logger.info(`Отправлено фото платежа с telegramFileId`, {
+								logger.info(`Загружено фото платежа с telegramFileId`, {
 									paymentId: itemId,
 									telegramFileId: item.telegramFileId,
 								});
 							} catch (photoError) {
-								logger.warn(`Не удалось отправить фото с telegramFileId`, {
+								logger.warn(`Не удалось загрузить фото с telegramFileId`, {
 									paymentId: itemId,
 									error: photoError.message,
 								});

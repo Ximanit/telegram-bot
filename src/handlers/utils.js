@@ -97,7 +97,7 @@ const sendOrEditMessage = async (
 		if (options.photo) {
 			sentMessage = await ctx.api.sendPhoto(chatId, options.photo, {
 				caption: text,
-				parse_mode: 'Markdown',
+				// parse_mode: 'Markdown',
 				reply_markup: keyboard,
 			});
 		} else {
